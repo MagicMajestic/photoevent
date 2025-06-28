@@ -103,6 +103,26 @@ class RegistrationModal(discord.ui.Modal):
                            f"Теперь вы можете отправлять скриншоты в личные сообщения боту.",
                 color=config.RASPBERRY_COLOR
             )
+            
+            # Отправляем личное сообщение с подтверждением регистрации
+            try:
+                dm_embed = discord.Embed(
+                    title="🎮 Регистрация на ивент завершена!",
+                    description=f"Поздравляем! Вы успешно зарегистрированы на ивент.\n\n"
+                               f"**Ваши данные:**\n"
+                               f"• StaticID: {self.static_id.value}\n"
+                               f"• Nickname: {self.nickname.value}\n\n"
+                               f"**Как участвовать:**\n"
+                               f"Отправляйте скриншоты прямо сюда, в личные сообщения боту.\n"
+                               f"Период ивента: {format_event_dates()}",
+                    color=config.RASPBERRY_COLOR
+                )
+                await interaction.user.send(embed=dm_embed)
+                print(f"✅ Уведомление о регистрации отправлено пользователю {interaction.user}")
+            except discord.Forbidden:
+                print(f"❌ Не удалось отправить DM пользователю {interaction.user.id} - закрыты личные сообщения")
+            except Exception as e:
+                print(f"❌ Ошибка при отправке DM регистрации: {e}")
         else:
             embed = discord.Embed(
                 title="❌ Ошибка регистрации",
@@ -505,7 +525,7 @@ async def on_message(message):
         return
     
     # Сохраняем скриншот в базу данных
-    success = database.add_submission(player['id'], attachment.url)
+    success = database.add_submission(player['discord_id'], attachment.url)
     
     if success:
         submissions_count = len(database.get_player_submissions(message.author.id))

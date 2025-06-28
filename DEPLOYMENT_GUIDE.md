@@ -1,135 +1,108 @@
-# Discord Bot Deployment Guide
+# Руководство по развертыванию Discord бота
 
-## Общая информация
+## Системные требования
 
-Данный Discord бот написан на Python и использует:
-- **py-cord** (современная версия discord.py)
-- **SQLite** для базы данных (локальный файл)
-- **python-dotenv** для переменных окружения
-- **pytz** для работы с часовыми поясами
+- Python 3.8 или выше
+- Стабильное интернет-соединение
+- VPS или выделенный сервер (рекомендуется Ubuntu 20.04+)
 
-## Требования для развертывания
+## Файлы для загрузки на сервер
 
-### Системные требования
-- **Python 3.11** или новее
-- **pip** (менеджер пакетов Python)
-- Постоянное интернет-соединение
-- Минимум 512MB RAM
-- 1GB свободного места на диске
+Скопируйте следующие файлы на ваш сервер:
 
-### Файлы для копирования
-Скопируйте эти файлы на новый сервер:
-```
-main_fixed.py       # Основной файл бота
-database.py         # Работа с базой данных
-config.py          # Настройки конфигурации
-pyproject.toml     # Зависимости проекта
-.env               # Переменные окружения (создать заново)
-```
+### Основные файлы
+- `main_discord_py.py` - **ГЛАВНЫЙ ФАЙЛ БОТА** (запускать этот)
+- `database.py` - модуль работы с базой данных
+- `config.py` - настройки бота
+- `.env` - файл с токеном бота
 
-## Пошаговая инструкция развертывания
+### Дополнительные файлы
+- `pyproject.toml` - зависимости Python
+- `uv.lock` - точные версии пакетов
 
-### Шаг 1: Настройка сервера
+## Пошаговая установка
 
-**Для Ubuntu/Debian серверов:**
+### 1. Подготовка сервера (Ubuntu/Debian)
+
 ```bash
 # Обновляем систему
 sudo apt update && sudo apt upgrade -y
 
-# Устанавливаем Python 3.11 и pip
-sudo apt install python3.11 python3.11-pip python3.11-venv -y
+# Устанавливаем Python и pip
+sudo apt install python3 python3-pip python3-venv git -y
 
-# Создаем рабочую директорию
-mkdir discord-bot
-cd discord-bot
+# Создаем пользователя для бота (опционально)
+sudo useradd -m -s /bin/bash discordbot
+sudo su - discordbot
 ```
 
-**Для CentOS/RHEL серверов:**
-```bash
-# Обновляем систему
-sudo yum update -y
-
-# Устанавливаем Python 3.11
-sudo yum install python3.11 python3.11-pip -y
-
-# Создаем рабочую директорию
-mkdir discord-bot
-cd discord-bot
-```
-
-### Шаг 2: Установка зависимостей
+### 2. Настройка проекта
 
 ```bash
+# Создаем директорию проекта
+mkdir discord-event-bot
+cd discord-event-bot
+
 # Создаем виртуальное окружение
-python3.11 -m venv bot_env
-
-# Активируем окружение
-source bot_env/bin/activate
+python3 -m venv venv
+source venv/bin/activate
 
 # Устанавливаем зависимости
-pip install py-cord python-dotenv pytz
-
-# Проверяем установку
-pip list
+pip install discord.py==2.5.2 python-dotenv pytz
 ```
 
-### Шаг 3: Настройка файлов
+### 3. Копирование файлов
 
-**Создайте файл .env:**
-```bash
-nano .env
-```
+Загрузите файлы проекта на сервер любым способом:
+- SCP/SFTP
+- Git clone (если проект в репозитории)
+- Прямое копирование
 
-**Содержимое .env файла:**
-```
-BOT_TOKEN=ВАШ_ТОКЕН_БОТА_DISCORD
-```
+### 4. Настройка конфигурации
 
-**Настройте config.py:**
+Отредактируйте файл `config.py`:
+
 ```python
-# Обновите эти значения для вашего сервера
-GUILD_ID = ВАШ_ID_СЕРВЕРА_DISCORD
-ADMIN_ROLE_ID = ID_РОЛИ_АДМИНИСТРАТОРА
+# Установите ID вашего Discord сервера
+GUILD_ID = 123456789012345678  # Замените на ID вашего сервера
 
-# Временные зоны и даты ивента
-EVENT_START = "2025-06-28T00:00:00"
-EVENT_END = "2025-07-05T23:59:59"
-TIMEZONE = "Europe/Moscow"  # Измените на ваш часовой пояс
+# Установите ID роли администратора (опционально)
+ADMIN_ROLE_ID = 987654321098765432  # Замените на ID роли админа
+
+# Настройте временную зону
+TIMEZONE = pytz.timezone('Europe/Moscow')  # Измените по необходимости
+
+# Даты ивента (ISO формат)
+EVENT_START = "2025-01-01T00:00:00"  # Начало ивента
+EVENT_END = "2025-01-31T23:59:59"    # Конец ивента
 ```
 
-### Шаг 4: Копирование файлов
+Создайте файл `.env` с токеном бота:
 
-Скопируйте все файлы проекта в директорию `discord-bot/`:
-```bash
-# Способ 1: через scp (с другого сервера)
-scp user@old-server:/path/to/bot/* ./
-
-# Способ 2: через git clone (если код в репозитории)
-git clone YOUR_REPOSITORY_URL .
-
-# Способ 3: загрузка через FileZilla/WinSCP
+```env
+BOT_TOKEN=ваш_токен_бота_здесь
 ```
 
-### Шаг 5: Тестовый запуск
+### 5. Запуск бота
 
 ```bash
-# Активируем окружение если не активировано
-source bot_env/bin/activate
+# Активируем виртуальное окружение
+source venv/bin/activate
 
-# Запускаем бота
-python main_fixed.py
+# Запускаем основной файл бота
+python main_discord_py.py
 ```
 
-Должно появиться сообщение: `Фотограф#XXXX подключен к Discord!`
+## Настройка автозапуска (systemd)
 
-### Шаг 6: Настройка автозапуска
+Создайте systemd сервис для автоматического запуска:
 
-**Создайте systemd сервис (для Ubuntu/CentOS):**
 ```bash
 sudo nano /etc/systemd/system/discord-bot.service
 ```
 
-**Содержимое сервиса:**
+Содержимое файла:
+
 ```ini
 [Unit]
 Description=Discord Event Bot
@@ -137,158 +110,141 @@ After=network.target
 
 [Service]
 Type=simple
-User=ВАШ_ПОЛЬЗОВАТЕЛЬ
-WorkingDirectory=/home/ВАШ_ПОЛЬЗОВАТЕЛЬ/discord-bot
-Environment=PATH=/home/ВАШ_ПОЛЬЗОВАТЕЛЬ/discord-bot/bot_env/bin
-ExecStart=/home/ВАШ_ПОЛЬЗОВАТЕЛЬ/discord-bot/bot_env/bin/python main_fixed.py
+User=discordbot
+WorkingDirectory=/home/discordbot/discord-event-bot
+Environment=PATH=/home/discordbot/discord-event-bot/venv/bin
+ExecStart=/home/discordbot/discord-event-bot/venv/bin/python main_discord_py.py
 Restart=always
+RestartSec=10
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-**Запуск сервиса:**
+Активируйте сервис:
+
 ```bash
-# Перезагружаем systemd
 sudo systemctl daemon-reload
+sudo systemctl enable discord-bot.service
+sudo systemctl start discord-bot.service
 
-# Включаем автозапуск
-sudo systemctl enable discord-bot
-
-# Запускаем сервис
-sudo systemctl start discord-bot
-
-# Проверяем статус
-sudo systemctl status discord-bot
+# Проверьте статус
+sudo systemctl status discord-bot.service
 
 # Просмотр логов
-sudo journalctl -u discord-bot -f
+sudo journalctl -u discord-bot.service -f
 ```
 
-## Специфичные инструкции для SparkedHost
+## Управление ботом
 
-### Панель управления SparkedHost
-1. **Выберите VPS с Ubuntu 22.04**
-2. **Минимальная конфигурация:** 1GB RAM, 10GB SSD
-3. **После создания VPS подключитесь по SSH**
-
-### SSH подключение
+### Запуск
 ```bash
-ssh root@ВАШ_IP_АДРЕС
+sudo systemctl start discord-bot.service
 ```
 
-### Установка для SparkedHost
+### Остановка
 ```bash
-# Обновляем систему
-apt update && apt upgrade -y
-
-# Устанавливаем необходимые пакеты
-apt install python3.11 python3.11-pip python3.11-venv nano git htop -y
-
-# Создаем пользователя для бота
-useradd -m -s /bin/bash botuser
-su - botuser
-
-# Далее следуйте основной инструкции начиная с Шага 2
+sudo systemctl stop discord-bot.service
 ```
 
-## Важные настройки Discord
-
-### В Discord Developer Portal:
-1. **Bot Token:** Скопируйте токен в .env файл
-2. **Privileged Gateway Intents:** Включите "Message Content Intent"
-3. **Bot Permissions:** Минимум 2048 (Use Slash Commands)
-
-### Получение ID сервера и роли:
-```
-1. Включите Developer Mode в Discord
-2. Правый клик на сервер → "Copy Server ID" 
-3. Правый клик на роль администратора → "Copy Role ID"
-4. Обновите config.py с полученными ID
-```
-
-## Управление ботом на сервере
-
-### Полезные команды
+### Перезапуск
 ```bash
-# Статус бота
-sudo systemctl status discord-bot
-
-# Остановка бота
-sudo systemctl stop discord-bot
-
-# Запуск бота
-sudo systemctl start discord-bot
-
-# Перезапуск бота
-sudo systemctl restart discord-bot
-
-# Просмотр логов в реальном времени
-sudo journalctl -u discord-bot -f
-
-# Обновление кода (если есть изменения)
-cd discord-bot
-git pull  # или скопируйте новые файлы
-sudo systemctl restart discord-bot
+sudo systemctl restart discord-bot.service
 ```
 
-### Резервное копирование
+### Просмотр логов
 ```bash
-# Создание бэкапа базы данных
-cp event_data.db backup/event_data_$(date +%Y%m%d).db
-
-# Автоматический бэкап (crontab)
-crontab -e
-# Добавьте строку для ежедневного бэкапа в 3:00
-0 3 * * * cp /home/botuser/discord-bot/event_data.db /home/botuser/backup/event_data_$(date +\%Y\%m\%d).db
+sudo journalctl -u discord-bot.service -f
 ```
 
-## Решение проблем
+## Настройки Discord
 
-### Бот не подключается
-1. Проверьте правильность BOT_TOKEN в .env
-2. Убедитесь что бот добавлен на сервер с правильными правами
-3. Проверьте интернет-соединение сервера
+### 1. В Discord Developer Portal:
 
-### Команды не работают
-1. Убедитесь что GUILD_ID корректный в config.py
-2. Проверьте что "Message Content Intent" включен
-3. Перезапустите бота после изменений
+- Включите "Message Content Intent"
+- Включите "Server Members Intent" (если нужно)
+- Убедитесь что бот имеет права:
+  - Send Messages
+  - Use Slash Commands
+  - Read Message History
+  - Embed Links
 
-### База данных ошибки
-1. Проверьте права доступа к файлу event_data.db
-2. Убедитесь что есть свободное место на диске
-3. Файл базы должен быть в той же папке что и main_fixed.py
+### 2. На вашем Discord сервере:
 
-## Мониторинг и логи
+- Пригласите бота с нужными правами
+- Убедитесь что у бота есть роль с административными правами
+- Проверьте что бот может видеть каналы где будут использоваться команды
 
-### Просмотр статуса системы
+## Резервное копирование
+
+База данных SQLite сохраняется в файле `event_data.db`. Регулярно делайте его резервные копии:
+
 ```bash
-# Использование ресурсов
+# Создание бэкапа
+cp event_data.db backup_$(date +%Y%m%d_%H%M%S).db
+
+# Автоматический бэкап (добавить в crontab)
+0 2 * * * cp /home/discordbot/discord-event-bot/event_data.db /home/discordbot/backups/backup_$(date +\%Y\%m\%d).db
+```
+
+## Мониторинг
+
+Для мониторинга состояния бота используйте:
+
+```bash
+# Проверка процесса
+ps aux | grep python | grep main_discord_py
+
+# Мониторинг логов в реальном времени
+sudo journalctl -u discord-bot.service -f
+
+# Проверка использования ресурсов
 htop
-
-# Место на диске
-df -h
-
-# Логи системы
-journalctl -xe
-
-# Сетевые соединения
-netstat -tuln
 ```
 
-### Настройка уведомлений
-Рекомендуется настроить мониторинг через:
-- **Uptimerobot** (бесплатный HTTP/Ping мониторинг)
-- **Telegram уведомления** при падении сервиса
-- **Email алерты** через systemd
+## Устранение неполадок
 
-## Заключение
+### Бот не запускается:
+1. Проверьте токен в файле `.env`
+2. Убедитесь что все зависимости установлены
+3. Проверьте логи: `journalctl -u discord-bot.service`
 
-После выполнения всех шагов ваш Discord бот будет:
-- ✅ Автоматически запускаться при перезагрузке сервера
-- ✅ Перезапускаться при ошибках
-- ✅ Логировать все действия
-- ✅ Иметь резервные копии базы данных
+### Команды не работают:
+1. Убедитесь что GUILD_ID правильный
+2. Проверьте права бота на сервере
+3. Перезапустите бота для синхронизации команд
 
-Бот полностью готов к продакшн использованию на любом VPS провайдере.
+### Личные сообщения не работают:
+1. Проверьте настройки конфиденциальности пользователей
+2. Убедитесь что включен "Message Content Intent"
+3. Проверьте права бота на отправку DM
+
+## Обновление бота
+
+```bash
+# Остановите бота
+sudo systemctl stop discord-bot.service
+
+# Обновите файлы проекта
+# (скопируйте новые версии файлов)
+
+# Обновите зависимости (если нужно)
+source venv/bin/activate
+pip install --upgrade discord.py python-dotenv pytz
+
+# Запустите бота
+sudo systemctl start discord-bot.service
+```
+
+## Главный файл для запуска
+
+**ВАЖНО:** Главный файл для запуска бота - `main_discord_py.py`
+
+Этот файл содержит всю логику бота, включая:
+- Обработку команд
+- Систему регистрации
+- Модерацию скриншотов
+- Административные функции
+- Систему уведомлений
+
+Не запускайте другие файлы (main.py, main_simple.py и т.д.) - они предназначены для разработки и тестирования.

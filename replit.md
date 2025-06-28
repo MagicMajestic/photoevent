@@ -61,13 +61,13 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-- June 28, 2025: Successfully migrated from Replit Agent to Replit environment
-  - ✅ Fixed security vulnerability - removed hardcoded bot token from config.py
-  - ✅ Updated config.py to properly load BOT_TOKEN from environment variables
-  - ✅ Installed all required dependencies (py-cord, python-dotenv, pytz)
-  - ✅ Bot connects successfully with updated token (Фотограф#3534)
-  - ✅ Migration completed with proper environment variable management
-  - ✅ All project structure and functionality preserved
+- June 28, 2025: Successfully migrated to discord.py 2.5.2 for compatibility
+  - ✅ Migrated from py-cord to discord.py 2.5.2 to avoid conflicts with user's other bots
+  - ✅ Fixed database field access error (player['id'] → player['discord_id'])
+  - ✅ Enhanced registration system with DM notifications to users
+  - ✅ Added comprehensive deployment guide (DEPLOYMENT_GUIDE.md)
+  - ✅ Bot connects successfully and all core functionality preserved
+  - ✅ Main file for production: main_discord_py.py
 
 - June 28, 2025: Successfully migrated from Replit Agent to Replit environment
   - ✅ Fixed dependency conflicts between discord.py and py-cord
