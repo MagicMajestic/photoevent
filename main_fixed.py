@@ -128,9 +128,19 @@ class ScreenshotSelect(discord.ui.Select):
             timestamp = datetime.datetime.fromisoformat(sub['submission_time'])
             date_str = timestamp.strftime("%d.%m %H:%M")
             
-            status_emoji = "✅" if sub.get('is_approved') else ("⏳" if sub['is_valid'] else "❌")
+            # Проверяем статус одобрения
+            if sub.get('is_approved') is True:
+                status_emoji = "✅"
+                status_text = "Одобрен"
+            elif sub.get('is_approved') is False:
+                status_emoji = "❌"
+                status_text = "Отклонен"
+            else:
+                status_emoji = "⏳"
+                status_text = "На модерации"
+            
             label = f"Скриншот #{i+1} ({date_str})"
-            description = f"{status_emoji} {'Одобрен' if sub.get('is_approved') else ('На модерации' if sub['is_valid'] else 'Отклонен')}"
+            description = f"{status_emoji} {status_text}"
             
             options.append(discord.SelectOption(
                 label=label[:100],
@@ -161,7 +171,13 @@ class ScreenshotSelect(discord.ui.Select):
             timestamp = datetime.datetime.fromisoformat(submission['submission_time'])
             date_str = timestamp.strftime("%d.%m.%Y в %H:%M")
             
-            status_text = "✅ Одобрен" if submission.get('is_approved') else ("⏳ На модерации" if submission['is_valid'] else "❌ Отклонен")
+            # Проверяем статус одобрения
+            if submission.get('is_approved') is True:
+                status_text = "✅ Одобрен"
+            elif submission.get('is_approved') is False:
+                status_text = "❌ Отклонен"
+            else:
+                status_text = "⏳ На модерации"
             
             embed = discord.Embed(
                 title=f"📸 Скриншот #{submission_id}",
@@ -369,34 +385,35 @@ async def admin_stats(ctx):
             return
         
         total_players = database.get_all_players_stats()
-        leaderboard = database.get_leaderboard()
+        leaderboard_by_approved = database.get_leaderboard_by_approved()
         approved_stats = database.get_approved_screenshots_stats()
         
         # Считаем общую статистику
-        total_submissions = sum(player[2] for player in leaderboard)
-        total_approved = sum(player[3] for player in approved_stats)
+        total_submissions = sum(player[2] for player in leaderboard_by_approved)
+        total_approved = sum(player[3] for player in leaderboard_by_approved)
         
         embed = discord.Embed(
             title="📊 Статистика ивента",
             color=config.RASPBERRY_COLOR
         )
         embed.add_field(name="👥 Всего игроков", value=str(total_players), inline=True)
-        embed.add_field(name="🏆 Активных игроков", value=str(len(leaderboard)), inline=True)
         embed.add_field(name="📸 Всего скриншотов", value=str(total_submissions), inline=True)
         embed.add_field(name="✅ Одобренных скриншотов", value=str(total_approved), inline=True)
         embed.add_field(name="📅 Период ивента", value=format_event_dates(), inline=False)
         embed.add_field(name="⏰ Статус", value="🟢 Активен" if is_event_active() else "🔴 Неактивен", inline=True)
         
-        # Показываем топ-5 игроков
-        if leaderboard:
-            top_players = leaderboard[:5]
+        # Показываем топ-5 игроков по одобренным скриншотам
+        if leaderboard_by_approved:
+            top_players = leaderboard_by_approved[:5]
             top_text = ""
-            for i, (discord_id, nickname, count) in enumerate(top_players, 1):
+            for i, (discord_id, nickname, total_screenshots, approved_count) in enumerate(top_players, 1):
                 user_tag = get_user_tag(discord_id)
-                top_text += f"{i}. {nickname} ({user_tag}) - {count} скриншотов\n"
-            embed.add_field(name="🏆 Топ-5 игроков", value=top_text or "Нет данных", inline=False)
+                top_text += f"{i}. {nickname} ({user_tag}) - {approved_count} одобренных ({total_screenshots} всего)\n"
+            embed.add_field(name="🏆 Топ-5 игроков (по одобренным)", value=top_text or "Нет данных", inline=False)
         
-        view = PlayerListView(leaderboard) if leaderboard else None
+        # Преобразуем данные для выпадающего списка (discord_id, nickname, total_count)
+        player_list_data = [(player[0], player[1], player[2]) for player in leaderboard_by_approved]
+        view = PlayerListView(player_list_data) if player_list_data else None
         await ctx.respond(embed=embed, view=view, ephemeral=True)
     except Exception as e:
         print(f"Ошибка команды /admin_stats: {e}")
@@ -496,6 +513,51 @@ async def calculate_payments(ctx):
     except Exception as e:
         print(f"Ошибка команды /calculate: {e}")
         await ctx.respond("❌ Произошла ошибка.", ephemeral=True)
+
+@bot.slash_command(name='reset_stats', description='Полный сброс статистики и профилей (только для администраторов)', guild_ids=[config.GUILD_ID])
+async def reset_statistics(ctx):
+    """Команда для сброса всех статистик."""
+    try:
+        if not await has_admin_permissions(ctx):
+            return
+        
+        # Подтверждение действия
+        embed = discord.Embed(
+            title="⚠️ Подтверждение сброса",
+            description="Вы действительно хотите очистить ВСЮ статистику ивента?\n\n**Это действие:**\n• Удалит всех зарегистрированных игроков\n• Удалит все скриншоты\n• Очистит всю статистику\n\n**Это действие НЕОБРАТИМО!**",
+            color=0xFF0000
+        )
+        
+        view = ResetConfirmationView()
+        await ctx.respond(embed=embed, view=view, ephemeral=True)
+    except Exception as e:
+        print(f"Ошибка команды /reset_stats: {e}")
+        await ctx.respond("❌ Произошла ошибка.", ephemeral=True)
+
+class ResetConfirmationView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=60)
+
+    @discord.ui.button(label="✅ Да, очистить", style=discord.ButtonStyle.danger)
+    async def confirm_reset(self, button: discord.ui.Button, interaction: discord.Interaction):
+        try:
+            success = database.reset_all_statistics()
+            if success:
+                embed = discord.Embed(
+                    title="✅ Статистика сброшена",
+                    description="Все данные ивента успешно удалены.\nБот готов к новому ивенту!",
+                    color=config.RASPBERRY_COLOR
+                )
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+            else:
+                await interaction.response.send_message("❌ Ошибка при сбросе статистики.", ephemeral=True)
+        except Exception as e:
+            print(f"Ошибка сброса статистики: {e}")
+            await interaction.response.send_message("❌ Произошла ошибка.", ephemeral=True)
+
+    @discord.ui.button(label="❌ Отмена", style=discord.ButtonStyle.secondary)
+    async def cancel_reset(self, button: discord.ui.Button, interaction: discord.Interaction):
+        await interaction.response.send_message("Сброс статистики отменен.", ephemeral=True)
 
 # Запуск бота
 if __name__ == "__main__":

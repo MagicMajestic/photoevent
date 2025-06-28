@@ -291,3 +291,52 @@ def get_submission_by_id(submission_id: int) -> Optional[dict]:
             'is_approved': result[5]
         }
     return None
+
+def get_leaderboard_by_approved() -> List[Tuple[int, str, int, int]]:
+    """
+    Возвращает топ игроков по количеству одобренных скриншотов.
+    Возвращает список кортежей: (discord_id, nickname, total_screenshots, approved_count)
+    """
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT 
+            p.discord_id, 
+            p.nickname,
+            COUNT(s.submission_id) as total_screenshots,
+            COUNT(CASE WHEN s.is_approved = TRUE THEN 1 END) as approved_count
+        FROM players p
+        LEFT JOIN submissions s ON p.discord_id = s.player_id AND s.is_valid = TRUE
+        WHERE p.is_disqualified = FALSE
+        GROUP BY p.discord_id, p.nickname
+        HAVING total_screenshots > 0
+        ORDER BY approved_count DESC, total_screenshots DESC
+    ''')
+    
+    results = cursor.fetchall()
+    conn.close()
+    
+    return results
+
+def reset_all_statistics() -> bool:
+    """
+    Очищает все статистики и профили игроков (полный сброс для нового ивента).
+    """
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    
+    try:
+        # Удаляем все скриншоты
+        cursor.execute("DELETE FROM submissions")
+        
+        # Удаляем всех игроков
+        cursor.execute("DELETE FROM players")
+        
+        conn.commit()
+        conn.close()
+        return True
+    except sqlite3.Error as e:
+        print(f"Ошибка при сбросе статистики: {e}")
+        conn.close()
+        return False

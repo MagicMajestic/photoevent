@@ -61,6 +61,15 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+- June 28, 2025: Fixed all reported issues and enhanced functionality
+  - ✅ Fixed screenshot status display - now properly shows approved/rejected/pending
+  - ✅ Replaced Discord IDs with @tags in all statistics and displays
+  - ✅ Top players ranking now based on approved screenshots count (not total)
+  - ✅ Removed "Active players" count from statistics (cleaner display)
+  - ✅ Added /reset_stats command with confirmation dialog for new events
+  - ✅ Enhanced leaderboard sorting: approved screenshots first, then total screenshots
+  - ✅ All status updates work correctly after moderation actions
+
 - June 28, 2025: Completed full bot implementation with advanced moderation features
   - ✅ Screenshot moderation system with approve/reject buttons
   - ✅ Enhanced /admin_stats with top players list and dropdown menu for selection
