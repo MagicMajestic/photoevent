@@ -287,6 +287,14 @@ class ScreenshotModerationView(discord.ui.View):
         super().__init__(timeout=300)
         self.submission_id = submission_id
         self.current_status = current_status
+    
+    async def update_parent_stats_if_needed(self, interaction):
+        """Обновляет статистику в родительском сообщении admin_stats если возможно"""
+        try:
+            # Этот метод может быть расширен в будущем для обновления статистики
+            pass
+        except Exception as e:
+            print(f"Ошибка обновления статистики: {e}")
 
     @discord.ui.button(label="✅ Одобрить", style=discord.ButtonStyle.success)
     async def approve_button(self, button: discord.ui.Button, interaction: discord.Interaction):
@@ -351,6 +359,9 @@ class ScreenshotModerationView(discord.ui.View):
                 
                 await interaction.response.edit_message(view=self)
                 await interaction.followup.send(status_message, ephemeral=True)
+                
+                # Обновляем статистику в родительском сообщении admin_stats если оно есть
+                await self.update_parent_stats_if_needed(interaction)
             else:
                 await interaction.response.send_message("❌ Ошибка при одобрении.", ephemeral=True)
         except Exception as e:
@@ -385,9 +396,9 @@ class PlayerSelect(discord.ui.Select):
             
             # Получаем детальную статистику модерации для каждого игрока
             submissions = database.get_player_submissions(discord_id)
-            approved_count = len([s for s in submissions if s.get('is_approved') is True])
-            rejected_count = len([s for s in submissions if s.get('is_approved') is False])
-            pending_count = len([s for s in submissions if s.get('is_approved') is None])
+            approved_count = len([s for s in submissions if s['is_approved'] is True])
+            rejected_count = len([s for s in submissions if s['is_approved'] is False])
+            pending_count = len([s for s in submissions if s['is_approved'] is None])
             
             label = f"{nickname} ({display_name})"
             
