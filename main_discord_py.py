@@ -186,13 +186,13 @@ class RejectReasonModal(discord.ui.Modal):
         
         if success:
             submission = database.get_submission_by_id(self.submission_id)
-            player = database.get_player(submission['player_discord_id'])
+            player = database.get_player(submission['discord_id'])
             
             # Уведомляем игрока
             try:
-                user = bot.get_user(submission['player_discord_id'])
+                user = bot.get_user(submission['discord_id'])
                 if user:
-                    screenshot_number = database.get_player_screenshot_number(submission['player_discord_id'], self.submission_id)
+                    screenshot_number = database.get_player_screenshot_number(submission['discord_id'], self.submission_id)
                     embed = discord.Embed(
                         title="❌ Скриншот отклонен",
                         description=f"Ваш скриншот #{screenshot_number} был отклонен.\n\n**Причина:** {self.reason.value}",
@@ -228,13 +228,13 @@ class ScreenshotModerationView(discord.ui.View):
         
         if success:
             submission = database.get_submission_by_id(self.submission_id)
-            player = database.get_player(submission['player_discord_id'])
+            player = database.get_player(submission['discord_id'])
             
             # Уведомляем игрока
             try:
-                user = bot.get_user(submission['player_discord_id'])
+                user = bot.get_user(submission['discord_id'])
                 if user:
-                    screenshot_number = database.get_player_screenshot_number(submission['player_discord_id'], self.submission_id)
+                    screenshot_number = database.get_player_screenshot_number(submission['discord_id'], self.submission_id)
                     embed = discord.Embed(
                         title="✅ Скриншот одобрен",
                         description=f"Ваш скриншот #{screenshot_number} был одобрен!",
