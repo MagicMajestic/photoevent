@@ -39,6 +39,17 @@ def format_event_dates() -> str:
     except Exception:
         return "Ошибка в конфигурации дат"
 
+def get_user_tag(user_id: int) -> str:
+    """Получает Discord тег пользователя или ID если не найден."""
+    try:
+        user = bot.get_user(user_id)
+        if user:
+            return f"@{user.name}"
+        else:
+            return f"ID:{user_id}"
+    except:
+        return f"ID:{user_id}"
+
 class RegistrationModal(discord.ui.Modal):
     def __init__(self):
         super().__init__(title="Регистрация на ивент")
@@ -105,6 +116,168 @@ class RegistrationView(discord.ui.View):
         except Exception as e:
             print(f"Ошибка кнопки регистрации: {e}")
             await interaction.response.send_message("❌ Произошла ошибка.", ephemeral=True)
+
+# Классы для просмотра скриншотов и модерации
+class ScreenshotSelect(discord.ui.Select):
+    def __init__(self, submissions, player_info):
+        self.submissions = submissions
+        self.player_info = player_info
+        
+        options = []
+        for i, sub in enumerate(submissions[:25]):  # Discord limit 25
+            timestamp = datetime.datetime.fromisoformat(sub['submission_time'])
+            date_str = timestamp.strftime("%d.%m %H:%M")
+            
+            status_emoji = "✅" if sub.get('is_approved') else ("⏳" if sub['is_valid'] else "❌")
+            label = f"Скриншот #{i+1} ({date_str})"
+            description = f"{status_emoji} {'Одобрен' if sub.get('is_approved') else ('На модерации' if sub['is_valid'] else 'Отклонен')}"
+            
+            options.append(discord.SelectOption(
+                label=label[:100],
+                description=description[:100], 
+                value=str(sub['submission_id'])
+            ))
+        
+        placeholder = "Выберите скриншот для просмотра..." if options else "Нет скриншотов"
+        
+        super().__init__(
+            placeholder=placeholder,
+            options=options if options else [discord.SelectOption(label="Пусто", value="0")],
+            disabled=not options
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        try:
+            if self.disabled:
+                return
+                
+            submission_id = int(self.values[0])
+            submission = database.get_submission_by_id(submission_id)
+            
+            if not submission:
+                await interaction.response.send_message("❌ Скриншот не найден.", ephemeral=True)
+                return
+            
+            timestamp = datetime.datetime.fromisoformat(submission['submission_time'])
+            date_str = timestamp.strftime("%d.%m.%Y в %H:%M")
+            
+            status_text = "✅ Одобрен" if submission.get('is_approved') else ("⏳ На модерации" if submission['is_valid'] else "❌ Отклонен")
+            
+            embed = discord.Embed(
+                title=f"📸 Скриншот #{submission_id}",
+                description=f"**Игрок:** {self.player_info['nickname']}\n**Дата:** {date_str}\n**Статус:** {status_text}",
+                color=config.RASPBERRY_COLOR
+            )
+            embed.set_image(url=submission['screenshot_url'])
+            
+            # Добавляем кнопки модерации только для админов
+            view = None
+            if interaction.user.guild_permissions.administrator:
+                view = ScreenshotModerationView(submission_id, submission.get('is_approved', False))
+            
+            await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        except Exception as e:
+            print(f"Ошибка просмотра скриншота: {e}")
+            await interaction.response.send_message("❌ Произошла ошибка.", ephemeral=True)
+
+class ScreenshotModerationView(discord.ui.View):
+    def __init__(self, submission_id, current_status):
+        super().__init__(timeout=300)
+        self.submission_id = submission_id
+        self.current_status = current_status
+
+    @discord.ui.button(label="✅ Одобрить", style=discord.ButtonStyle.success)
+    async def approve_button(self, button: discord.ui.Button, interaction: discord.Interaction):
+        try:
+            success = database.approve_screenshot(self.submission_id)
+            if success:
+                await interaction.response.send_message("✅ Скриншот одобрен!", ephemeral=True)
+            else:
+                await interaction.response.send_message("❌ Ошибка при одобрении.", ephemeral=True)
+        except Exception as e:
+            print(f"Ошибка одобрения: {e}")
+            await interaction.response.send_message("❌ Произошла ошибка.", ephemeral=True)
+
+    @discord.ui.button(label="❌ Отклонить", style=discord.ButtonStyle.danger)
+    async def reject_button(self, button: discord.ui.Button, interaction: discord.Interaction):
+        try:
+            success = database.reject_screenshot(self.submission_id)
+            if success:
+                await interaction.response.send_message("❌ Скриншот отклонен!", ephemeral=True)
+            else:
+                await interaction.response.send_message("❌ Ошибка при отклонении.", ephemeral=True)
+        except Exception as e:
+            print(f"Ошибка отклонения: {e}")
+            await interaction.response.send_message("❌ Произошла ошибка.", ephemeral=True)
+
+class PlayerSelect(discord.ui.Select):
+    def __init__(self, players_data):
+        options = []
+        for player in players_data[:25]:
+            discord_id, nickname, screenshot_count = player
+            display_name = get_user_tag(discord_id)
+            
+            label = f"{nickname} ({display_name})"
+            description = f"Скриншотов: {screenshot_count}"
+            
+            options.append(discord.SelectOption(
+                label=label[:100],
+                description=description[:100],
+                value=str(discord_id)
+            ))
+        
+        placeholder = "Выберите игрока для просмотра профиля..." if options else "Нет зарегистрированных игроков"
+        
+        super().__init__(
+            placeholder=placeholder,
+            options=options if options else [discord.SelectOption(label="Пусто", value="0")],
+            disabled=not options
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        try:
+            if self.disabled:
+                return
+                
+            selected_discord_id = int(self.values[0])
+            player = database.get_player(selected_discord_id)
+            if not player:
+                await interaction.response.send_message("❌ Игрок не найден.", ephemeral=True)
+                return
+            
+            submissions = database.get_player_submissions(selected_discord_id)
+            approved_count = len([s for s in submissions if s.get('is_approved')])
+            
+            embed = discord.Embed(
+                title=f"👤 Профиль игрока",
+                color=config.RASPBERRY_COLOR
+            )
+            embed.add_field(name="Никнейм", value=player['nickname'], inline=True)
+            embed.add_field(name="Discord", value=get_user_tag(selected_discord_id), inline=True)
+            embed.add_field(name="StaticID", value=player['static_id'], inline=True)
+            embed.add_field(name="Скриншотов", value=str(len(submissions)), inline=True)
+            embed.add_field(name="Одобрено", value=str(approved_count), inline=True)
+            embed.add_field(name="Статус", value="❌ Дисквалифицирован" if player['is_disqualified'] else "✅ Активен", inline=True)
+            
+            # Добавляем выбор скриншотов если они есть
+            view = None
+            if submissions:
+                view = PlayerProfileView(submissions, player)
+            
+            await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        except Exception as e:
+            print(f"Ошибка выбора игрока: {e}")
+            await interaction.response.send_message("❌ Произошла ошибка.", ephemeral=True)
+
+class PlayerProfileView(discord.ui.View):
+    def __init__(self, submissions, player_info):
+        super().__init__(timeout=300)
+        self.add_item(ScreenshotSelect(submissions, player_info))
+
+class PlayerListView(discord.ui.View):
+    def __init__(self, players_data):
+        super().__init__(timeout=60)
+        self.add_item(PlayerSelect(players_data))
 
 @bot.event
 async def on_ready():
@@ -197,9 +370,11 @@ async def admin_stats(ctx):
         
         total_players = database.get_all_players_stats()
         leaderboard = database.get_leaderboard()
+        approved_stats = database.get_approved_screenshots_stats()
         
         # Считаем общую статистику
         total_submissions = sum(player[2] for player in leaderboard)
+        total_approved = sum(player[3] for player in approved_stats)
         
         embed = discord.Embed(
             title="📊 Статистика ивента",
@@ -208,6 +383,7 @@ async def admin_stats(ctx):
         embed.add_field(name="👥 Всего игроков", value=str(total_players), inline=True)
         embed.add_field(name="🏆 Активных игроков", value=str(len(leaderboard)), inline=True)
         embed.add_field(name="📸 Всего скриншотов", value=str(total_submissions), inline=True)
+        embed.add_field(name="✅ Одобренных скриншотов", value=str(total_approved), inline=True)
         embed.add_field(name="📅 Период ивента", value=format_event_dates(), inline=False)
         embed.add_field(name="⏰ Статус", value="🟢 Активен" if is_event_active() else "🔴 Неактивен", inline=True)
         
@@ -216,10 +392,12 @@ async def admin_stats(ctx):
             top_players = leaderboard[:5]
             top_text = ""
             for i, (discord_id, nickname, count) in enumerate(top_players, 1):
-                top_text += f"{i}. {nickname} - {count} скриншотов\n"
+                user_tag = get_user_tag(discord_id)
+                top_text += f"{i}. {nickname} ({user_tag}) - {count} скриншотов\n"
             embed.add_field(name="🏆 Топ-5 игроков", value=top_text or "Нет данных", inline=False)
         
-        await ctx.respond(embed=embed, ephemeral=True)
+        view = PlayerListView(leaderboard) if leaderboard else None
+        await ctx.respond(embed=embed, view=view, ephemeral=True)
     except Exception as e:
         print(f"Ошибка команды /admin_stats: {e}")
         await ctx.respond("❌ Произошла ошибка.", ephemeral=True)
@@ -237,6 +415,7 @@ async def admin_profile(ctx, user: discord.Member):
             return
         
         submissions = database.get_player_submissions(user.id)
+        approved_count = len([s for s in submissions if s.get('is_approved')])
         
         embed = discord.Embed(
             title=f"👤 Профиль игрока",
@@ -246,9 +425,11 @@ async def admin_profile(ctx, user: discord.Member):
         embed.add_field(name="Discord", value=f"@{user.name}", inline=True)
         embed.add_field(name="StaticID", value=player['static_id'], inline=True)
         embed.add_field(name="Скриншотов", value=str(len(submissions)), inline=True)
+        embed.add_field(name="Одобрено", value=str(approved_count), inline=True)
         embed.add_field(name="Статус", value="❌ Дисквалифицирован" if player['is_disqualified'] else "✅ Активен", inline=True)
         
-        await ctx.respond(embed=embed, ephemeral=True)
+        view = PlayerProfileView(submissions, player) if submissions else None
+        await ctx.respond(embed=embed, view=view, ephemeral=True)
     except Exception as e:
         print(f"Ошибка команды /admin_profile: {e}")
         await ctx.respond("❌ Произошла ошибка.", ephemeral=True)
@@ -278,6 +459,42 @@ async def admin_disqualify(ctx, user: discord.Member):
             await ctx.respond("❌ Ошибка при дисквалификации.", ephemeral=True)
     except Exception as e:
         print(f"Ошибка команды /admin_disqualify: {e}")
+        await ctx.respond("❌ Произошла ошибка.", ephemeral=True)
+
+@bot.slash_command(name='calculate', description='Расчет выплат для одобренных скриншотов (только для администраторов)', guild_ids=[config.GUILD_ID])
+async def calculate_payments(ctx):
+    """Команда для расчета выплат."""
+    try:
+        if not await has_admin_permissions(ctx):
+            return
+        
+        approved_stats = database.get_approved_screenshots_stats()
+        
+        if not approved_stats:
+            await ctx.respond("❌ Нет одобренных скриншотов для расчета.", ephemeral=True)
+            return
+        
+        embed = discord.Embed(
+            title="💰 Расчет выплат",
+            description="Команды для выдачи денег участникам:",
+            color=config.RASPBERRY_COLOR
+        )
+        
+        commands_text = ""
+        total_amount = 0
+        
+        for discord_id, nickname, static_id, approved_count in approved_stats:
+            amount = approved_count * 10000
+            total_amount += amount
+            commands_text += f"/givemoney {static_id} {amount} EventMagic\n"
+        
+        embed.add_field(name="📋 Команды", value=f"```{commands_text}```", inline=False)
+        embed.add_field(name="💵 Общая сумма", value=f"{total_amount:,} $", inline=True)
+        embed.add_field(name="👥 Участников", value=str(len(approved_stats)), inline=True)
+        
+        await ctx.respond(embed=embed, ephemeral=True)
+    except Exception as e:
+        print(f"Ошибка команды /calculate: {e}")
         await ctx.respond("❌ Произошла ошибка.", ephemeral=True)
 
 # Запуск бота
