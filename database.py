@@ -101,8 +101,8 @@ def add_submission(player_id: int, screenshot_url: str) -> bool:
     
     try:
         cursor.execute('''
-            INSERT INTO submissions (player_id, screenshot_url, submission_time, is_valid)
-            VALUES (?, ?, ?, TRUE)
+            INSERT INTO submissions (player_id, screenshot_url, submission_time, is_valid, is_approved)
+            VALUES (?, ?, ?, TRUE, NULL)
         ''', (player_id, screenshot_url, datetime.datetime.utcnow()))
         
         conn.commit()
