@@ -426,7 +426,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "discord-py", specifier = ">=2.5.2" },
+    { name = "discord-py", specifier = "==2.5.2" },
     { name = "python-dotenv", specifier = ">=1.1.1" },
     { name = "pytz", specifier = ">=2025.2" },
 ]

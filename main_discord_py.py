@@ -199,8 +199,13 @@ class RejectReasonModal(discord.ui.Modal):
                         color=config.RASPBERRY_COLOR
                     )
                     await user.send(embed=embed)
-            except:
-                pass
+                    print(f"✅ Уведомление об отклонении отправлено пользователю {user}")
+            except discord.Forbidden:
+                print(f"❌ Не удалось отправить DM пользователю {submission['discord_id']} - закрыты личные сообщения")
+            except discord.HTTPException as e:
+                print(f"❌ Ошибка HTTP при отправке DM: {e}")
+            except Exception as e:
+                print(f"❌ Неожиданная ошибка при отправке DM: {e}")
             
             await interaction.response.send_message("✅ Скриншот отклонен, игрок уведомлен.", ephemeral=True)
             await self.parent_view.update_parent_stats_if_needed(interaction)
@@ -241,8 +246,13 @@ class ScreenshotModerationView(discord.ui.View):
                         color=config.RASPBERRY_COLOR
                     )
                     await user.send(embed=embed)
-            except:
-                pass
+                    print(f"✅ Уведомление об одобрении отправлено пользователю {user}")
+            except discord.Forbidden:
+                print(f"❌ Не удалось отправить DM пользователю {submission['discord_id']} - закрыты личные сообщения")
+            except discord.HTTPException as e:
+                print(f"❌ Ошибка HTTP при отправке DM: {e}")
+            except Exception as e:
+                print(f"❌ Неожиданная ошибка при отправке DM: {e}")
             
             await interaction.response.send_message("✅ Скриншот одобрен, игрок уведомлен.", ephemeral=True)
             await self.update_parent_stats_if_needed(interaction)
@@ -405,6 +415,28 @@ async def start_registration(interaction: discord.Interaction):
     
     view = RegistrationView()
     await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+@bot.tree.command(name="test_dm", description="Тест отправки личного сообщения")
+async def test_dm(interaction: discord.Interaction):
+    """Тестовая команда для проверки отправки DM."""
+    try:
+        embed = discord.Embed(
+            title="🧪 Тест личного сообщения",
+            description="Это тестовое сообщение для проверки работы личных сообщений.",
+            color=config.RASPBERRY_COLOR
+        )
+        await interaction.user.send(embed=embed)
+        await interaction.response.send_message("✅ Тестовое сообщение отправлено в ваши личные сообщения!", ephemeral=True)
+        print(f"✅ Тестовое DM отправлено пользователю {interaction.user}")
+    except discord.Forbidden:
+        await interaction.response.send_message("❌ Не удалось отправить личное сообщение. У вас закрыты DM от участников сервера.", ephemeral=True)
+        print(f"❌ DM заблокированы для пользователя {interaction.user.id}")
+    except discord.HTTPException as e:
+        await interaction.response.send_message(f"❌ Ошибка HTTP при отправке сообщения: {e}", ephemeral=True)
+        print(f"❌ Ошибка HTTP при отправке DM: {e}")
+    except Exception as e:
+        await interaction.response.send_message(f"❌ Неожиданная ошибка: {e}", ephemeral=True)
+        print(f"❌ Неожиданная ошибка при отправке DM: {e}")
 
 @bot.event
 async def on_message(message):
@@ -659,8 +691,13 @@ async def admin_disqualify(interaction: discord.Interaction, user: discord.Membe
                 color=config.RASPBERRY_COLOR
             )
             await user.send(embed=embed_notification)
-        except:
-            pass
+            print(f"✅ Уведомление о {action_text} отправлено пользователю {user}")
+        except discord.Forbidden:
+            print(f"❌ Не удалось отправить DM пользователю {user.id} - закрыты личные сообщения")
+        except discord.HTTPException as e:
+            print(f"❌ Ошибка HTTP при отправке DM: {e}")
+        except Exception as e:
+            print(f"❌ Неожиданная ошибка при отправке DM: {e}")
         
         await interaction.response.send_message(f"✅ Игрок {user.mention} {action_text}.", ephemeral=True)
     else:
