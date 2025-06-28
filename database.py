@@ -118,7 +118,7 @@ def get_player_submissions(discord_id: int) -> List[dict]:
     cursor = conn.cursor()
     
     cursor.execute('''
-        SELECT submission_id, screenshot_url, submission_time, is_valid
+        SELECT submission_id, screenshot_url, submission_time, is_valid, is_approved
         FROM submissions WHERE player_id = ?
         ORDER BY submission_time DESC
     ''', (discord_id,))
@@ -132,7 +132,8 @@ def get_player_submissions(discord_id: int) -> List[dict]:
             'submission_id': result[0],
             'screenshot_url': result[1],
             'submission_time': result[2],
-            'is_valid': bool(result[3])
+            'is_valid': bool(result[3]),
+            'is_approved': result[4]  # None, True, or False
         })
     
     return submissions
@@ -309,7 +310,7 @@ def get_submission_by_id(submission_id: int) -> Optional[dict]:
     if result:
         return {
             'submission_id': result[0],
-            'player_id': result[1],
+            'discord_id': result[1],  # player_id это тот же discord_id
             'screenshot_url': result[2],
             'submission_time': result[3],
             'is_valid': result[4],

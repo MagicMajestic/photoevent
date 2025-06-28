@@ -210,6 +210,57 @@ class ScreenshotSelect(discord.ui.Select):
             print(f"Ошибка просмотра скриншота: {e}")
             await interaction.response.send_message("❌ Произошла ошибка.", ephemeral=True)
 
+class RejectReasonModal(discord.ui.Modal):
+    def __init__(self, submission_id):
+        super().__init__(title="Причина отклонения скриншота")
+        self.submission_id = submission_id
+        
+        self.reason = discord.ui.InputText(
+            label="Причина отклонения",
+            placeholder="Опишите причину отклонения скриншота...",
+            style=discord.InputTextStyle.paragraph,
+            required=True,
+            max_length=500
+        )
+        self.add_item(self.reason)
+
+    async def callback(self, interaction: discord.Interaction):
+        try:
+            # Получаем данные скриншота и игрока
+            submission = database.get_submission_by_id(self.submission_id)
+            if not submission:
+                await interaction.response.send_message("❌ Скриншот не найден.", ephemeral=True)
+                return
+            
+            player = database.get_player(submission['discord_id'])
+            if not player:
+                await interaction.response.send_message("❌ Игрок не найден.", ephemeral=True)
+                return
+            
+            # Отклоняем скриншот
+            success = database.reject_screenshot(self.submission_id)
+            if success:
+                # Отправляем уведомление игроку
+                try:
+                    user = bot.get_user(submission['discord_id'])
+                    if user:
+                        embed = discord.Embed(
+                            title="❌ Скриншот отклонен",
+                            description=f"**Скриншот #{self.submission_id}** был отклонен администратором.\n\n**Причина:** {self.reason.value}\n\nВы можете отправить новый скриншот.",
+                            color=0xFF0000
+                        )
+                        embed.set_image(url=submission['screenshot_url'])
+                        await user.send(embed=embed)
+                except Exception as e:
+                    print(f"Ошибка отправки уведомления: {e}")
+                
+                await interaction.response.send_message(f"❌ Скриншот отклонен!\nПричина: {self.reason.value}\nИгроку отправлено уведомление.", ephemeral=True)
+            else:
+                await interaction.response.send_message("❌ Ошибка при отклонении.", ephemeral=True)
+        except Exception as e:
+            print(f"Ошибка отклонения: {e}")
+            await interaction.response.send_message("❌ Произошла ошибка.", ephemeral=True)
+
 class ScreenshotModerationView(discord.ui.View):
     def __init__(self, submission_id, current_status):
         super().__init__(timeout=300)
@@ -219,9 +270,39 @@ class ScreenshotModerationView(discord.ui.View):
     @discord.ui.button(label="✅ Одобрить", style=discord.ButtonStyle.success)
     async def approve_button(self, button: discord.ui.Button, interaction: discord.Interaction):
         try:
+            # Получаем данные скриншота и игрока
+            submission = database.get_submission_by_id(self.submission_id)
+            if not submission:
+                await interaction.response.send_message("❌ Скриншот не найден.", ephemeral=True)
+                return
+            
+            player = database.get_player(submission['discord_id'])
+            if not player:
+                await interaction.response.send_message("❌ Игрок не найден.", ephemeral=True)
+                return
+            
             success = database.approve_screenshot(self.submission_id)
             if success:
-                await interaction.response.send_message("✅ Скриншот одобрен!", ephemeral=True)
+                # Отправляем уведомление игроку
+                try:
+                    user = bot.get_user(submission['discord_id'])
+                    if user:
+                        embed = discord.Embed(
+                            title="✅ Скриншот одобрен!",
+                            description=f"**Скриншот #{self.submission_id}** был одобрен администратором!\n\n💰 **Награда:** $10,000\n\nПродолжайте искать локации!",
+                            color=config.RASPBERRY_COLOR
+                        )
+                        embed.set_image(url=submission['screenshot_url'])
+                        await user.send(embed=embed)
+                except Exception as e:
+                    print(f"Ошибка отправки уведомления: {e}")
+                
+                await interaction.response.send_message("✅ Скриншот одобрен!\nИгроку отправлено уведомление о награде $10,000.", ephemeral=True)
+                
+                # Обновляем интерфейс - отключаем кнопки
+                for item in self.children:
+                    item.disabled = True
+                await interaction.edit_original_response(view=self)
             else:
                 await interaction.response.send_message("❌ Ошибка при одобрении.", ephemeral=True)
         except Exception as e:
@@ -231,11 +312,8 @@ class ScreenshotModerationView(discord.ui.View):
     @discord.ui.button(label="❌ Отклонить", style=discord.ButtonStyle.danger)
     async def reject_button(self, button: discord.ui.Button, interaction: discord.Interaction):
         try:
-            success = database.reject_screenshot(self.submission_id)
-            if success:
-                await interaction.response.send_message("❌ Скриншот отклонен!", ephemeral=True)
-            else:
-                await interaction.response.send_message("❌ Ошибка при отклонении.", ephemeral=True)
+            modal = RejectReasonModal(self.submission_id)
+            await interaction.response.send_modal(modal)
         except Exception as e:
             print(f"Ошибка отклонения: {e}")
             await interaction.response.send_message("❌ Произошла ошибка.", ephemeral=True)

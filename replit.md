@@ -61,6 +61,14 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+- June 28, 2025: Fixed moderation system and enhanced notification features
+  - ✅ Fixed screenshot status updates - now properly shows after moderation in profile
+  - ✅ Added automatic user notifications for screenshot approval/rejection
+  - ✅ Created reason input modal for screenshot rejection with custom messages
+  - ✅ Fixed database queries to include is_approved field for accurate status display
+  - ✅ Enhanced moderation interface with better feedback and button states
+  - ✅ All status updates now work correctly across dropdown menus and detailed views
+
 - June 28, 2025: Fixed all registration and moderation issues + enhanced admin features
   - ✅ Fixed registration modal - now works correctly after database reset
   - ✅ Enhanced player profiles with detailed screenshot breakdown (approved/rejected/pending)
