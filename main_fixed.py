@@ -245,6 +245,10 @@ class RejectReasonModal(discord.ui.Modal):
                 notification_sent = False
                 try:
                     user = bot.get_user(submission['discord_id'])
+                    if user is None:
+                        # Пытаемся получить пользователя через fetch
+                        user = await bot.fetch_user(submission['discord_id'])
+                    
                     if user:
                         embed = discord.Embed(
                             title="❌ Скриншот отклонен",
@@ -254,8 +258,13 @@ class RejectReasonModal(discord.ui.Modal):
                         embed.set_image(url=submission['screenshot_url'])
                         await user.send(embed=embed)
                         notification_sent = True
+                        print(f"Уведомление об отклонении отправлено пользователю {user.name}")
+                    else:
+                        print(f"Не удалось найти пользователя с ID {submission['discord_id']}")
                 except Exception as e:
-                    print(f"Ошибка отправки уведомления: {e}")
+                    print(f"Ошибка отправки уведомления об отклонении: {e}")
+                    print(f"Тип ошибки: {type(e).__name__}")
+                    print(f"Детали: {str(e)}")
                 
                 # Отправляем ответ с информацией о результате
                 status_message = f"❌ Скриншот отклонен!\nПричина: {self.reason.value}"
@@ -294,8 +303,13 @@ class ScreenshotModerationView(discord.ui.View):
             success = database.approve_screenshot(self.submission_id)
             if success:
                 # Отправляем уведомление игроку
+                notification_sent = False
                 try:
                     user = bot.get_user(submission['discord_id'])
+                    if user is None:
+                        # Пытаемся получить пользователя через fetch
+                        user = await bot.fetch_user(submission['discord_id'])
+                    
                     if user:
                         embed = discord.Embed(
                             title="✅ Скриншот одобрен!",
@@ -304,8 +318,14 @@ class ScreenshotModerationView(discord.ui.View):
                         )
                         embed.set_image(url=submission['screenshot_url'])
                         await user.send(embed=embed)
+                        notification_sent = True
+                        print(f"Уведомление об одобрении отправлено пользователю {user.name}")
+                    else:
+                        print(f"Не удалось найти пользователя с ID {submission['discord_id']}")
                 except Exception as e:
-                    print(f"Ошибка отправки уведомления: {e}")
+                    print(f"Ошибка отправки уведомления об одобрении: {e}")
+                    print(f"Тип ошибки: {type(e).__name__}")
+                    print(f"Детали: {str(e)}")
                 
                 # Обновляем кнопки после одобрения
                 button.disabled = True
@@ -318,8 +338,15 @@ class ScreenshotModerationView(discord.ui.View):
                         item.disabled = True
                         item.style = discord.ButtonStyle.secondary
                 
+                # Обновляем статус сообщения в зависимости от успеха уведомления
+                status_message = "✅ Скриншот одобрен!"
+                if notification_sent:
+                    status_message += "\nИгроку отправлено уведомление."
+                else:
+                    status_message += "\n⚠️ Не удалось отправить уведомление игроку."
+                
                 await interaction.response.edit_message(view=self)
-                await interaction.followup.send("✅ Скриншот одобрен!\nИгроку отправлено уведомление.", ephemeral=True)
+                await interaction.followup.send(status_message, ephemeral=True)
             else:
                 await interaction.response.send_message("❌ Ошибка при одобрении.", ephemeral=True)
         except Exception as e:
