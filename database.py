@@ -29,9 +29,16 @@ def setup_database():
             screenshot_url TEXT NOT NULL,
             submission_time TIMESTAMP NOT NULL,
             is_valid BOOLEAN DEFAULT TRUE,
+            is_approved BOOLEAN DEFAULT FALSE,
             FOREIGN KEY (player_id) REFERENCES players (discord_id)
         )
     ''')
+    
+    # Добавляем поле is_approved если его нет (для обновления существующих баз)
+    try:
+        cursor.execute('ALTER TABLE submissions ADD COLUMN is_approved BOOLEAN DEFAULT FALSE')
+    except sqlite3.OperationalError:
+        pass  # Поле уже существует
     
     conn.commit()
     conn.close()
@@ -201,3 +208,86 @@ def is_player_disqualified(discord_id: int) -> bool:
     conn.close()
     
     return bool(result[0]) if result else False
+
+def approve_screenshot(submission_id: int) -> bool:
+    """Одобряет скриншот (устанавливает is_approved = TRUE)."""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            UPDATE submissions SET is_approved = TRUE WHERE submission_id = ?
+        ''', (submission_id,))
+        
+        conn.commit()
+        success = cursor.rowcount > 0
+        conn.close()
+        return success
+    except sqlite3.Error:
+        conn.close()
+        return False
+
+def reject_screenshot(submission_id: int) -> bool:
+    """Отклоняет скриншот (устанавливает is_approved = FALSE)."""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            UPDATE submissions SET is_approved = FALSE WHERE submission_id = ?
+        ''', (submission_id,))
+        
+        conn.commit()
+        success = cursor.rowcount > 0
+        conn.close()
+        return success
+    except sqlite3.Error:
+        conn.close()
+        return False
+
+def get_approved_screenshots_stats() -> List[Tuple[int, str, str, int]]:
+    """
+    Возвращает статистику одобренных скриншотов для всех игроков.
+    Возвращает список кортежей: (discord_id, nickname, static_id, approved_count)
+    """
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT p.discord_id, p.nickname, p.static_id, COUNT(s.submission_id) as approved_count
+        FROM players p
+        LEFT JOIN submissions s ON p.discord_id = s.player_id AND s.is_approved = TRUE AND s.is_valid = TRUE
+        WHERE p.is_disqualified = FALSE
+        GROUP BY p.discord_id, p.nickname, p.static_id
+        HAVING approved_count > 0
+        ORDER BY approved_count DESC
+    ''')
+    
+    results = cursor.fetchall()
+    conn.close()
+    
+    return results
+
+def get_submission_by_id(submission_id: int) -> Optional[dict]:
+    """Получает данные скриншота по ID."""
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT submission_id, player_id, screenshot_url, submission_time, is_valid, is_approved
+        FROM submissions WHERE submission_id = ?
+    ''', (submission_id,))
+    
+    result = cursor.fetchone()
+    conn.close()
+    
+    if result:
+        return {
+            'submission_id': result[0],
+            'player_id': result[1],
+            'screenshot_url': result[2],
+            'submission_time': result[3],
+            'is_valid': result[4],
+            'is_approved': result[5]
+        }
+    return None
