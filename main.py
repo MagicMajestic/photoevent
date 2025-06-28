@@ -211,13 +211,18 @@ async def on_message(message):
     if screenshot_found:
         await message.reply("✅ Скриншот принят!")
 
-def has_admin_permissions(interaction: discord.Interaction) -> bool:
+async def has_admin_permissions(interaction: discord.Interaction) -> bool:
     """Проверка прав администратора на сервере."""
     if not interaction.guild or interaction.guild.id != config.GUILD_ID:
         return False
-    member = interaction.guild.get_member(interaction.user.id)
-    if not member:
-        return False
+    
+    # Получаем участника через взаимодействие
+    member = interaction.user
+    if not hasattr(member, 'guild_permissions'):
+        # Если это User, а не Member, получаем Member объект
+        member = await interaction.guild.fetch_member(interaction.user.id)
+    
+    # Проверяем права администратора
     return member.guild_permissions.administrator
 
 class PlayerListView(discord.ui.View):
@@ -252,7 +257,7 @@ class PlayerListView(discord.ui.View):
     @discord.ui.select(placeholder="Выберите игрока для просмотра профиля...")
     async def select_player(self, interaction: discord.Interaction, select: discord.ui.Select):
         """Обработка выбора игрока."""
-        if not has_admin_permissions(interaction):
+        if not await has_admin_permissions(interaction):
             await interaction.response.send_message("❌ У вас нет прав для использования этой функции.", ephemeral=True)
             return
             
@@ -302,7 +307,7 @@ class PlayerListView(discord.ui.View):
 @bot.tree.command(name='admin_stats', description='Статистика ивента и список всех участников')
 async def admin_stats(interaction: discord.Interaction):
     """Слэш-команда для получения статистики ивента."""
-    if not has_admin_permissions(interaction):
+    if not await has_admin_permissions(interaction):
         await interaction.response.send_message("❌ У вас нет прав для использования этой команды.", ephemeral=True)
         return
     
@@ -452,7 +457,7 @@ class ScreenshotPaginator(discord.ui.View):
 @bot.tree.command(name='admin_profile', description='Просмотр профиля конкретного игрока')
 async def admin_profile(interaction: discord.Interaction, user: discord.Member):
     """Слэш-команда для просмотра профиля игрока."""
-    if not has_admin_permissions(interaction):
+    if not await has_admin_permissions(interaction):
         await interaction.response.send_message("❌ У вас нет прав для использования этой команды.", ephemeral=True)
         return
     
@@ -519,7 +524,7 @@ async def admin_profile(interaction: discord.Interaction, user: discord.Member):
 @bot.tree.command(name='admin_disqualify', description='Дисквалификация игрока с ивента')
 async def admin_disqualify(interaction: discord.Interaction, user: discord.Member):
     """Слэш-команда для дисквалификации игрока."""
-    if not has_admin_permissions(interaction):
+    if not await has_admin_permissions(interaction):
         await interaction.response.send_message("❌ У вас нет прав для использования этой команды.", ephemeral=True)
         return
     
