@@ -250,9 +250,11 @@ class RejectReasonModal(discord.ui.Modal):
                         user = await bot.fetch_user(submission['discord_id'])
                     
                     if user:
+                        # Получаем личный номер скриншота игрока
+                        personal_number = database.get_player_screenshot_number(submission['discord_id'], self.submission_id)
                         embed = discord.Embed(
                             title="❌ Скриншот отклонен",
-                            description=f"**Скриншот #{self.submission_id}** был отклонен администратором.\n\n**Причина:** {self.reason.value}\n\nВы можете отправить новый скриншот.",
+                            description=f"**Ваш {personal_number}-й скриншот** был отклонен администратором.\n\n**Причина:** {self.reason.value}\n\nВы можете отправить новый скриншот.",
                             color=0xFF0000
                         )
                         embed.set_image(url=submission['screenshot_url'])
@@ -311,9 +313,11 @@ class ScreenshotModerationView(discord.ui.View):
                         user = await bot.fetch_user(submission['discord_id'])
                     
                     if user:
+                        # Получаем личный номер скриншота игрока
+                        personal_number = database.get_player_screenshot_number(submission['discord_id'], self.submission_id)
                         embed = discord.Embed(
                             title="✅ Скриншот одобрен!",
-                            description=f"**Скриншот #{self.submission_id}** был одобрен администратором!\n\nПродолжайте искать локации!",
+                            description=f"**Ваш {personal_number}-й скриншот** был одобрен администратором!\n\nПродолжайте искать локации!",
                             color=config.RASPBERRY_COLOR
                         )
                         embed.set_image(url=submission['screenshot_url'])

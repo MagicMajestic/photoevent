@@ -345,6 +345,31 @@ def get_leaderboard_by_approved() -> List[Tuple[int, str, int, int]]:
     
     return results
 
+def get_player_screenshot_number(discord_id: int, submission_id: int) -> int:
+    """
+    Возвращает личный номер скриншота игрока (1-й, 2-й, 3-й и т.д.).
+    Основан на времени отправки скриншотов конкретного игрока.
+    """
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    
+    # Получаем порядковый номер скриншота среди всех скриншотов игрока
+    cursor.execute('''
+        SELECT COUNT(*) + 1 as screenshot_number
+        FROM submissions s1
+        WHERE s1.player_id = ? 
+        AND s1.submission_time < (
+            SELECT s2.submission_time 
+            FROM submissions s2 
+            WHERE s2.submission_id = ?
+        )
+    ''', (discord_id, submission_id))
+    
+    result = cursor.fetchone()
+    conn.close()
+    
+    return result[0] if result else 1
+
 def reset_all_statistics() -> bool:
     """
     Очищает все статистики и профили игроков (полный сброс для нового ивента).
