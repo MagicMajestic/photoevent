@@ -143,10 +143,10 @@ class ScreenshotSelect(discord.ui.Select):
             date_str = timestamp.strftime("%d.%m %H:%M")
             
             # Проверяем статус одобрения
-            if sub.get('is_approved') is True:
+            if sub.get('is_approved') == 1 or sub.get('is_approved') is True:
                 status_emoji = "✅"
                 status_text = "Одобрен"
-            elif sub.get('is_approved') is False:
+            elif sub.get('is_approved') == 0 or sub.get('is_approved') is False:
                 status_emoji = "❌"
                 status_text = "Отклонен"
             else:
@@ -436,8 +436,8 @@ class PlayerSelect(discord.ui.Select):
                 return
             
             submissions = database.get_player_submissions(selected_discord_id)
-            approved_count = len([s for s in submissions if s.get('is_approved') is True])
-            rejected_count = len([s for s in submissions if s.get('is_approved') is False])
+            approved_count = len([s for s in submissions if s.get('is_approved') == 1 or s.get('is_approved') is True])
+            rejected_count = len([s for s in submissions if s.get('is_approved') == 0 or s.get('is_approved') is False])
             pending_count = len([s for s in submissions if s.get('is_approved') is None])
             
             embed = discord.Embed(
