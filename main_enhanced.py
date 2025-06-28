@@ -284,8 +284,14 @@ async def on_ready():
     print(f'{bot.user} подключен к Discord!')
     database.setup_database()
     print("База данных инициализирована.")
+    
+    # Синхронизируем slash-команды
+    try:
+        print("Команды зарегистрированы автоматически")
+    except Exception as e:
+        print(f"Ошибка: {e}")
 
-@bot.slash_command(name='start', description='Регистрация на ивент поиска локаций')
+@bot.slash_command(name='start', description='Регистрация на ивент поиска локаций', guild_ids=[config.GUILD_ID])
 async def start_registration(ctx):
     """Слэш-команда для начала регистрации на ивент."""
     if ctx.guild and ctx.guild.id != config.GUILD_ID:
@@ -347,7 +353,7 @@ async def on_message(message):
     else:
         await message.reply("❌ Ошибка при сохранении скриншота. Попробуйте еще раз.")
 
-@bot.slash_command(name='admin_stats', description='Статистика ивента (только для администраторов)')
+@bot.slash_command(name='admin_stats', description='Статистика ивента (только для администраторов)', guild_ids=[config.GUILD_ID])
 async def admin_stats(ctx):
     """Слэш-команда для получения статистики ивента."""
     if not await has_admin_permissions(ctx):
@@ -384,7 +390,7 @@ async def admin_stats(ctx):
     view = PlayerListView(leaderboard) if leaderboard else None
     await ctx.respond(embed=embed, view=view, ephemeral=True)
 
-@bot.slash_command(name='admin_profile', description='Просмотр профиля игрока (только для администраторов)')
+@bot.slash_command(name='admin_profile', description='Просмотр профиля игрока (только для администраторов)', guild_ids=[config.GUILD_ID])
 async def admin_profile(ctx, user: discord.Member):
     """Слэш-команда для просмотра профиля игрока."""
     if not await has_admin_permissions(ctx):
@@ -412,7 +418,7 @@ async def admin_profile(ctx, user: discord.Member):
     view = PlayerProfileView(submissions, player) if submissions else None
     await ctx.respond(embed=embed, view=view, ephemeral=True)
 
-@bot.slash_command(name='admin_disqualify', description='Дисквалификация игрока (только для администраторов)')
+@bot.slash_command(name='admin_disqualify', description='Дисквалификация игрока (только для администраторов)', guild_ids=[config.GUILD_ID])
 async def admin_disqualify(ctx, user: discord.Member):
     """Слэш-команда для дисквалификации игрока."""
     if not await has_admin_permissions(ctx):
@@ -445,7 +451,7 @@ async def admin_disqualify(ctx, user: discord.Member):
     else:
         await ctx.respond("❌ Ошибка при дисквалификации.", ephemeral=True)
 
-@bot.slash_command(name='calculate', description='Расчет выплат для одобренных скриншотов (только для администраторов)')
+@bot.slash_command(name='calculate', description='Расчет выплат для одобренных скриншотов (только для администраторов)', guild_ids=[config.GUILD_ID])
 async def calculate_payments(ctx):
     """Слэш-команда для расчета выплат."""
     if not await has_admin_permissions(ctx):
