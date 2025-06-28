@@ -144,11 +144,19 @@ async def on_ready():
     # Инициализация базы данных
     database.setup_database()
     print("База данных инициализирована.")
+    
+    # Синхронизируем слэш-команды
+    try:
+        synced = await bot.tree.sync()
+        print(f"Синхронизировано {len(synced)} слэш-команд")
+    except Exception as e:
+        print(f"Ошибка синхронизации команд: {e}")
 
-@bot.command(name='start')
-async def start_registration(ctx):
-    """Команда для начала регистрации на ивент."""
-    if ctx.guild and ctx.guild.id != config.GUILD_ID:
+@bot.tree.command(name='start', description='Регистрация на ивент поиска локаций')
+async def start_registration(interaction: discord.Interaction):
+    """Слэш-команда для начала регистрации на ивент."""
+    if interaction.guild and interaction.guild.id != config.GUILD_ID:
+        await interaction.response.send_message("❌ Команда недоступна на этом сервере.", ephemeral=True)
         return
     
     embed = discord.Embed(
@@ -158,7 +166,7 @@ async def start_registration(ctx):
     )
     
     view = RegistrationView()
-    await ctx.send(embed=embed, view=view)
+    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
 @bot.event
 async def on_message(message):
@@ -203,58 +211,168 @@ async def on_message(message):
     if screenshot_found:
         await message.reply("✅ Скриншот принят!")
 
-def has_admin_role():
+def has_admin_permissions(interaction: discord.Interaction) -> bool:
     """Проверка прав администратора на сервере."""
-    def predicate(ctx):
-        if not ctx.guild or ctx.guild.id != config.GUILD_ID:
-            return False
-        return ctx.author.guild_permissions.administrator
-    return commands.check(predicate)
+    if not interaction.guild or interaction.guild.id != config.GUILD_ID:
+        return False
+    member = interaction.guild.get_member(interaction.user.id)
+    if not member:
+        return False
+    return member.guild_permissions.administrator
 
-@bot.command(name='admin_stats')
-@has_admin_role()
-async def admin_stats(ctx):
-    """Команда для получения статистики ивента."""
+class PlayerListView(discord.ui.View):
+    """Выпадающее меню для выбора игрока из списка."""
     
-    # Получаем общее количество участников
-    total_players = database.get_all_players_stats()
+    def __init__(self, players_data):
+        super().__init__(timeout=300)
+        self.players_data = players_data
+        
+        # Создаем выпадающий список с игроками
+        options = []
+        for player in players_data[:25]:  # Discord ограничивает до 25 опций
+            discord_id, nickname, static_id, screenshot_count, is_disqualified = player
+            user = bot.get_user(discord_id)
+            user_tag = user.display_name if user else f"ID:{discord_id}"
+            
+            status = "❌ ДИСКВ." if is_disqualified else f"📸 {screenshot_count}"
+            
+            options.append(discord.SelectOption(
+                label=f"{user_tag} ({nickname})",
+                description=f"StaticID: {static_id} | {status}",
+                value=str(discord_id)
+            ))
+        
+        if options:
+            self.select_player.options = options
+        else:
+            # Если нет игроков, отключаем селект
+            self.select_player.disabled = True
+            self.select_player.placeholder = "Нет зарегистрированных игроков"
     
-    # Получаем лидерборд
-    leaderboard = database.get_leaderboard()
+    @discord.ui.select(placeholder="Выберите игрока для просмотра профиля...")
+    async def select_player(self, interaction: discord.Interaction, select: discord.ui.Select):
+        """Обработка выбора игрока."""
+        if not has_admin_permissions(interaction):
+            await interaction.response.send_message("❌ У вас нет прав для использования этой функции.", ephemeral=True)
+            return
+            
+        discord_id = int(select.values[0])
+        user = bot.get_user(discord_id)
+        
+        if user:
+            # Получаем данные игрока
+            player = database.get_player(discord_id)
+            screenshots = database.get_player_submissions(discord_id)
+            
+            if player:
+                embed = discord.Embed(
+                    title=f"👤 Профиль игрока",
+                    color=config.RASPBERRY_COLOR
+                )
+                
+                # Основная информация
+                status = "❌ Дисквалифицирован" if player['is_disqualified'] else "✅ Активен"
+                embed.add_field(
+                    name="Основная информация",
+                    value=f"**Пользователь:** {user.mention}\n**Никнейм:** {player['nickname']}\n**StaticID:** {player['static_id']}\n**Статус:** {status}",
+                    inline=False
+                )
+                
+                # Статистика скриншотов
+                valid_screenshots = len([s for s in screenshots if s['is_valid']])
+                embed.add_field(
+                    name="📸 Статистика скриншотов",
+                    value=f"Всего отправлено: **{len(screenshots)}**\nВалидных: **{valid_screenshots}**",
+                    inline=True
+                )
+                
+                # Дата регистрации
+                embed.add_field(
+                    name="📅 Регистрация",
+                    value=f"<t:{int(player['registration_time'])}:F>",
+                    inline=True
+                )
+                
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+            else:
+                await interaction.response.send_message("❌ Игрок не найден в базе данных.", ephemeral=True)
+        else:
+            await interaction.response.send_message("❌ Пользователь не найден.", ephemeral=True)
+
+@bot.tree.command(name='admin_stats', description='Статистика ивента и список всех участников')
+async def admin_stats(interaction: discord.Interaction):
+    """Слэш-команда для получения статистики ивента."""
+    if not has_admin_permissions(interaction):
+        await interaction.response.send_message("❌ У вас нет прав для использования этой команды.", ephemeral=True)
+        return
     
-    # Создаем Embed с статистикой
+    # Получаем полный список игроков с дополнительной информацией
+    conn = sqlite3.connect('event_data.db')
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT p.discord_id, p.nickname, p.static_id, 
+               COUNT(CASE WHEN s.is_valid = 1 THEN 1 END) as screenshot_count,
+               p.is_disqualified
+        FROM players p
+        LEFT JOIN submissions s ON p.discord_id = s.player_id
+        GROUP BY p.discord_id, p.nickname, p.static_id, p.is_disqualified
+        ORDER BY screenshot_count DESC, p.nickname ASC
+    """)
+    
+    players_data = cursor.fetchall()
+    total_players = len(players_data)
+    conn.close()
+    
     embed = discord.Embed(
-        title="***Статистика ивента***",
+        title="📊 Статистика ивента",
         color=config.RASPBERRY_COLOR
     )
     
+    # Общая информация
+    active_players = len([p for p in players_data if not p[4]])  # not is_disqualified
+    disqualified_players = total_players - active_players
+    
     embed.add_field(
-        name="**Всего участников**",
-        value=str(total_players),
-        inline=True
+        name="Общая статистика",
+        value=f"Всего участников: **{total_players}**\nАктивных: **{active_players}**\nДисквалифицированных: **{disqualified_players}**\nАктивный период: {format_event_dates()}",
+        inline=False
     )
     
-    # Формируем топ-10 игроков
-    if leaderboard:
-        top_players = []
-        for i, (discord_id, nickname, count) in enumerate(leaderboard[:10], 1):
+    # Топ 10 участников
+    if players_data:
+        top_text = ""
+        for i, (discord_id, nickname, static_id, screenshot_count, is_disqualified) in enumerate(players_data[:10], 1):
             user = bot.get_user(discord_id)
-            user_mention = user.mention if user else f"ID:{discord_id}"
-            top_players.append(f"{i}. {user_mention} ({nickname}) - {count} скриншотов")
+            user_display = user.display_name if user else f"ID:{discord_id}"
+            status = " ❌" if is_disqualified else ""
+            top_text += f"**{i}.** {user_display} ({nickname}) - **{screenshot_count}** скриншотов{status}\n"
         
         embed.add_field(
-            name="**Топ-10 игроков по количеству скриншотов**",
-            value="\n".join(top_players) if top_players else "Нет данных",
+            name="🏆 Топ 10 участников",
+            value=top_text,
             inline=False
         )
     else:
         embed.add_field(
-            name="**Топ-10 игроков по количеству скриншотов**",
-            value="Нет данных",
+            name="🏆 Топ участников",
+            value="Пока нет участников",
             inline=False
         )
     
-    await ctx.send(embed=embed)
+    # Добавляем информацию о выпадающем меню
+    if players_data:
+        embed.add_field(
+            name="👥 Список участников",
+            value="Используйте выпадающее меню ниже для просмотра профиля любого участника",
+            inline=False
+        )
+    
+    if players_data:
+        view = PlayerListView(players_data)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+    else:
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 class ScreenshotPaginator(discord.ui.View):
     """Пагинатор для просмотра скриншотов игрока."""
@@ -331,15 +449,17 @@ class ScreenshotPaginator(discord.ui.View):
         else:
             await interaction.response.defer()
 
-@bot.command(name='admin_profile')
-@has_admin_role()
-async def admin_profile(ctx, user: discord.Member):
-    """Команда для просмотра профиля игрока."""
+@bot.tree.command(name='admin_profile', description='Просмотр профиля конкретного игрока')
+async def admin_profile(interaction: discord.Interaction, user: discord.Member):
+    """Слэш-команда для просмотра профиля игрока."""
+    if not has_admin_permissions(interaction):
+        await interaction.response.send_message("❌ У вас нет прав для использования этой команды.", ephemeral=True)
+        return
     
     # Получаем данные игрока
     player = database.get_player(user.id)
     if not player:
-        await ctx.respond("❌ Этот пользователь не зарегистрирован на ивенте.", ephemeral=True)
+        await interaction.response.send_message("❌ Этот пользователь не зарегистрирован на ивенте.", ephemeral=True)
         return
     
     # Получаем все скриншоты игрока
@@ -348,17 +468,33 @@ async def admin_profile(ctx, user: discord.Member):
     # Если скриншотов много, используем пагинацию
     if len(screenshots) > 10:
         paginator = ScreenshotPaginator(screenshots, player)
-        await ctx.send(embed=paginator.get_current_embed(), view=paginator)
+        await interaction.response.send_message(embed=paginator.get_current_embed(), view=paginator, ephemeral=True)
     else:
         # Создаем простой Embed без пагинации
         embed = discord.Embed(
-            title=f"***Профиль игрока: {player['nickname']}***",
+            title=f"👤 Профиль игрока: {player['nickname']}",
             color=config.RASPBERRY_COLOR
         )
         
-        embed.add_field(name="**StaticID**", value=player['static_id'], inline=True)
-        embed.add_field(name="**Дисквалифицирован**", value="Да" if player['is_disqualified'] else "Нет", inline=True)
-        embed.add_field(name="**Всего скриншотов**", value=str(len(screenshots)), inline=True)
+        status = "❌ Дисквалифицирован" if player['is_disqualified'] else "✅ Активен"
+        embed.add_field(
+            name="Основная информация",
+            value=f"**Пользователь:** {user.mention}\n**Никнейм:** {player['nickname']}\n**StaticID:** {player['static_id']}\n**Статус:** {status}",
+            inline=False
+        )
+        
+        valid_screenshots = len([s for s in screenshots if s['is_valid']])
+        embed.add_field(
+            name="📸 Статистика скриншотов",
+            value=f"Всего отправлено: **{len(screenshots)}**\nВалидных: **{valid_screenshots}**",
+            inline=True
+        )
+        
+        embed.add_field(
+            name="📅 Регистрация",
+            value=f"<t:{int(player['registration_time'])}:F>",
+            inline=True
+        )
         
         if screenshots:
             screenshot_links = []
@@ -367,48 +503,50 @@ async def admin_profile(ctx, user: discord.Member):
                 screenshot_links.append(f"{status} [{i}. Скриншот]({screenshot['screenshot_url']})")
             
             embed.add_field(
-                name="**Скриншоты**",
+                name="🖼️ Скриншоты",
                 value="\n".join(screenshot_links),
                 inline=False
             )
         else:
             embed.add_field(
-                name="**Скриншоты**",
+                name="🖼️ Скриншоты",
                 value="Нет скриншотов",
                 inline=False
             )
         
-        await ctx.send(embed=embed)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
-@bot.command(name='admin_disqualify')
-@has_admin_role()
-async def admin_disqualify(ctx, user: discord.Member):
-    """Команда для дисквалификации игрока."""
+@bot.tree.command(name='admin_disqualify', description='Дисквалификация игрока с ивента')
+async def admin_disqualify(interaction: discord.Interaction, user: discord.Member):
+    """Слэш-команда для дисквалификации игрока."""
+    if not has_admin_permissions(interaction):
+        await interaction.response.send_message("❌ У вас нет прав для использования этой команды.", ephemeral=True)
+        return
     
     # Проверяем, зарегистрирован ли игрок
     player = database.get_player(user.id)
     if not player:
-        await ctx.send("❌ Этот пользователь не зарегистрирован на ивенте.")
+        await interaction.response.send_message("❌ Этот пользователь не зарегистрирован на ивенте.", ephemeral=True)
         return
     
     # Проверяем, не дисквалифицирован ли уже
     if player['is_disqualified']:
-        await ctx.send("❌ Этот игрок уже дисквалифицирован.")
+        await interaction.response.send_message("❌ Этот игрок уже дисквалифицирован.", ephemeral=True)
         return
     
     # Дисквалифицируем игрока
     if database.disqualify_player(user.id):
-        await ctx.send(f"✅ Игрок {user.mention} ({player['nickname']}) успешно дисквалифицирован.")
+        await interaction.response.send_message(f"✅ Игрок {user.mention} ({player['nickname']}) успешно дисквалифицирован.", ephemeral=True)
         
         # Пытаемся отправить уведомление игроку в ЛС
         try:
             embed = discord.Embed(
-                title="***Уведомление о дисквалификации***",
+                title="🚫 Уведомление о дисквалификации",
                 description="К сожалению, вы были дисквалифицированы с ивента поиска локаций.",
                 color=config.RASPBERRY_COLOR
             )
             embed.add_field(
-                name="**Причина**",
+                name="Причина",
                 value="Нарушение правил ивента",
                 inline=False
             )
@@ -416,9 +554,9 @@ async def admin_disqualify(ctx, user: discord.Member):
             
             await user.send(embed=embed)
         except discord.Forbidden:
-            await ctx.send("⚠️ Не удалось отправить уведомление игроку в ЛС.")
+            await interaction.followup.send("⚠️ Не удалось отправить уведомление игроку в ЛС.", ephemeral=True)
     else:
-        await ctx.send("❌ Произошла ошибка при дисквалификации игрока.")
+        await interaction.response.send_message("❌ Произошла ошибка при дисквалификации игрока.", ephemeral=True)
 
 # Обработка ошибок команд
 @bot.event

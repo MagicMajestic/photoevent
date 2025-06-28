@@ -69,7 +69,14 @@ Preferred communication style: Simple, everyday language.
   - ✅ Admin commands for stats, player profiles, and disqualification
   - ✅ Bot successfully connects to Discord (running as Фотографер#3534)
   - ⚠️ Needs Message Content Intent enabled for full DM functionality
-  - ⚠️ Requires Guild ID and Admin Role ID configuration
+
+- June 28, 2025: Converted to modern slash commands with enhanced features
+  - ✅ All commands converted from prefix-based to slash commands
+  - ✅ /start command now shows privately to user only
+  - ✅ Enhanced /admin_stats with dropdown menu for player selection
+  - ✅ Admin commands show user tags and StaticIDs instead of raw IDs
+  - ✅ Removed admin role requirement - now uses Discord admin permissions
+  - ✅ All admin commands are private and ephemeral
 
 ## Current Status
 
