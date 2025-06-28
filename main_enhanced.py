@@ -294,9 +294,6 @@ async def on_ready():
 @bot.slash_command(name='start', description='Регистрация на ивент поиска локаций', guild_ids=[config.GUILD_ID])
 async def start_registration(ctx):
     """Слэш-команда для начала регистрации на ивент."""
-    if ctx.guild and ctx.guild.id != config.GUILD_ID:
-        await ctx.respond("❌ Команда недоступна на этом сервере.", ephemeral=True)
-        return
     
     embed = discord.Embed(
         title="***Ивент поиска локаций***",
