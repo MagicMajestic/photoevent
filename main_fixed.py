@@ -95,6 +95,17 @@ class RegistrationModal(discord.ui.Modal):
                     inline=False
                 )
                 await interaction.response.send_message(embed=embed, ephemeral=True)
+                
+                # Отправляем приветственное сообщение в ЛС
+                try:
+                    dm_embed = discord.Embed(
+                        title="🎉 Добро пожаловать в ивент поиска локаций!",
+                        description=f"Привет, **{nickname_value}**!\n\nВы успешно зарегистрированы с StaticID: `{static_id_value}`\n\n**Как участвовать:**\n• Отправляйте скриншоты локаций в этот чат\n• Каждый одобренный скриншот = $10,000\n• Ивент проходит: {format_event_dates()}\n\nУдачи в поисках! 🔍",
+                        color=config.RASPBERRY_COLOR
+                    )
+                    await interaction.user.send(embed=dm_embed)
+                except:
+                    pass  # Игнорируем ошибку если не удалось отправить ЛС
             else:
                 await interaction.response.send_message("❌ Вы уже зарегистрированы!", ephemeral=True)
         except Exception as e:
@@ -353,15 +364,15 @@ async def on_message(message):
             await message.reply("❌ Пожалуйста, отправьте изображение в формате PNG, JPG, JPEG, GIF или WebP.")
             return
         
-        success = database.add_submission(player['id'], attachment.url)
+        success = database.add_submission(message.author.id, attachment.url)
         
         if success:
             submissions = database.get_player_submissions(message.author.id)
             count = len(submissions)
             
             embed = discord.Embed(
-                title="✅ Скриншот принят!",
-                description=f"Всего отправлено скриншотов: **{count}**\nСтатус: ⏳ На модерации",
+                title="✅ Ваш скриншот принят в обработку",
+                description=f"Скриншот успешно получен и добавлен в систему.\n\n**Всего отправлено:** {count} скриншотов\n**Статус:** ⏳ На модерации администраторами\n\nВы получите уведомление когда скриншот будет проверен.",
                 color=config.RASPBERRY_COLOR
             )
             embed.set_image(url=attachment.url)
