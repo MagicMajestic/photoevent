@@ -186,9 +186,9 @@ class ScreenshotSelect(discord.ui.Select):
             date_str = timestamp.strftime("%d.%m.%Y в %H:%M")
             
             # Проверяем статус одобрения
-            if submission.get('is_approved') is True:
+            if submission.get('is_approved') == 1 or submission.get('is_approved') is True:
                 status_text = "✅ Одобрен"
-            elif submission.get('is_approved') is False:
+            elif submission.get('is_approved') == 0 or submission.get('is_approved') is False:
                 status_text = "❌ Отклонен"
             else:
                 status_text = "⏳ На модерации"
@@ -396,8 +396,8 @@ class PlayerSelect(discord.ui.Select):
             
             # Получаем детальную статистику модерации для каждого игрока
             submissions = database.get_player_submissions(discord_id)
-            approved_count = len([s for s in submissions if s['is_approved'] is True])
-            rejected_count = len([s for s in submissions if s['is_approved'] is False])
+            approved_count = len([s for s in submissions if s['is_approved'] == 1 or s['is_approved'] is True])
+            rejected_count = len([s for s in submissions if s['is_approved'] == 0 or s['is_approved'] is False])
             pending_count = len([s for s in submissions if s['is_approved'] is None])
             
             label = f"{nickname} ({display_name})"
@@ -679,8 +679,8 @@ async def admin_profile(ctx, user: discord.Member):
             return
         
         submissions = database.get_player_submissions(user.id)
-        approved_count = len([s for s in submissions if s.get('is_approved') is True])
-        rejected_count = len([s for s in submissions if s.get('is_approved') is False])
+        approved_count = len([s for s in submissions if s.get('is_approved') == 1 or s.get('is_approved') is True])
+        rejected_count = len([s for s in submissions if s.get('is_approved') == 0 or s.get('is_approved') is False])
         pending_count = len([s for s in submissions if s.get('is_approved') is None])
         
         embed = discord.Embed(

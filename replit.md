@@ -61,7 +61,10 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-- June 28, 2025: Enhanced user experience and scalability features
+- June 28, 2025: Fixed critical statistics display bug and enhanced user experience
+  - ✅ Fixed statistics calculation bug - now correctly handles database integer values (1/0) vs boolean (True/False)
+  - ✅ Dropdown lists now properly display moderation status (✅1 ❌0 ⏳2) instead of zeros
+  - ✅ Player profiles show accurate approved/rejected/pending counts
   - ✅ Players now receive personal screenshot numbers (1st, 2nd, 3rd) instead of system IDs
   - ✅ Added pagination system for admin stats to handle 100+ participants
   - ✅ Each page shows 25 participants with navigation buttons
