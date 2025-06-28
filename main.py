@@ -204,11 +204,11 @@ async def on_message(message):
         await message.reply("✅ Скриншот принят!")
 
 def has_admin_role():
-    """Проверка наличия административной роли."""
+    """Проверка прав администратора на сервере."""
     def predicate(ctx):
         if not ctx.guild or ctx.guild.id != config.GUILD_ID:
             return False
-        return any(role.id == config.ADMIN_ROLE_ID for role in ctx.author.roles)
+        return ctx.author.guild_permissions.administrator
     return commands.check(predicate)
 
 @bot.command(name='admin_stats')
