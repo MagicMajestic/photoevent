@@ -210,16 +210,36 @@ class RejectReasonModal(discord.ui.Modal):
             
             # Уведомляем игрока
             try:
+                print(f"🔍 Поиск пользователя с ID: {submission['discord_id']} для отклонения")
                 user = bot.get_user(submission['discord_id'])
                 if user:
+                    print(f"✅ Пользователь найден: {user.name}")
                     screenshot_number = database.get_player_screenshot_number(submission['discord_id'], self.submission_id)
                     embed = discord.Embed(
                         title="❌ Скриншот отклонен",
                         description=f"Ваш скриншот #{screenshot_number} был отклонен.\n\n**Причина:** {self.reason.value}",
                         color=config.RASPBERRY_COLOR
                     )
+                    print(f"📨 Отправка DM об отклонении пользователю {user.name}...")
                     await user.send(embed=embed)
-                    print(f"✅ Уведомление об отклонении отправлено пользователю {user}")
+                    print(f"✅ Уведомление об отклонении отправлено пользователю {user.name}")
+                else:
+                    print(f"❌ Пользователь с ID {submission['discord_id']} не найден через bot.get_user()")
+                    # Попробуем найти через fetch_user
+                    try:
+                        user = await bot.fetch_user(submission['discord_id'])
+                        print(f"✅ Пользователь найден через fetch_user: {user.name}")
+                        screenshot_number = database.get_player_screenshot_number(submission['discord_id'], self.submission_id)
+                        embed = discord.Embed(
+                            title="❌ Скриншот отклонен",
+                            description=f"Ваш скриншот #{screenshot_number} был отклонен.\n\n**Причина:** {self.reason.value}",
+                            color=config.RASPBERRY_COLOR
+                        )
+                        print(f"📨 Отправка DM об отклонении пользователю {user.name} через fetch_user...")
+                        await user.send(embed=embed)
+                        print(f"✅ Уведомление об отклонении отправлено пользователю {user.name}")
+                    except Exception as fetch_e:
+                        print(f"❌ Не удалось найти пользователя через fetch_user: {fetch_e}")
             except discord.Forbidden:
                 print(f"❌ Не удалось отправить DM пользователю {submission['discord_id']} - закрыты личные сообщения")
             except discord.HTTPException as e:
@@ -257,16 +277,36 @@ class ScreenshotModerationView(discord.ui.View):
             
             # Уведомляем игрока
             try:
+                print(f"🔍 Поиск пользователя с ID: {submission['discord_id']}")
                 user = bot.get_user(submission['discord_id'])
                 if user:
+                    print(f"✅ Пользователь найден: {user.name}")
                     screenshot_number = database.get_player_screenshot_number(submission['discord_id'], self.submission_id)
                     embed = discord.Embed(
                         title="✅ Скриншот одобрен",
                         description=f"Ваш скриншот #{screenshot_number} был одобрен!",
                         color=config.RASPBERRY_COLOR
                     )
+                    print(f"📨 Отправка DM пользователю {user.name}...")
                     await user.send(embed=embed)
-                    print(f"✅ Уведомление об одобрении отправлено пользователю {user}")
+                    print(f"✅ Уведомление об одобрении отправлено пользователю {user.name}")
+                else:
+                    print(f"❌ Пользователь с ID {submission['discord_id']} не найден через bot.get_user()")
+                    # Попробуем найти через fetch_user
+                    try:
+                        user = await bot.fetch_user(submission['discord_id'])
+                        print(f"✅ Пользователь найден через fetch_user: {user.name}")
+                        screenshot_number = database.get_player_screenshot_number(submission['discord_id'], self.submission_id)
+                        embed = discord.Embed(
+                            title="✅ Скриншот одобрен",
+                            description=f"Ваш скриншот #{screenshot_number} был одобрен!",
+                            color=config.RASPBERRY_COLOR
+                        )
+                        print(f"📨 Отправка DM пользователю {user.name} через fetch_user...")
+                        await user.send(embed=embed)
+                        print(f"✅ Уведомление об одобрении отправлено пользователю {user.name}")
+                    except Exception as fetch_e:
+                        print(f"❌ Не удалось найти пользователя через fetch_user: {fetch_e}")
             except discord.Forbidden:
                 print(f"❌ Не удалось отправить DM пользователю {submission['discord_id']} - закрыты личные сообщения")
             except discord.HTTPException as e:
