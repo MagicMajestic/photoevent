@@ -61,6 +61,15 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+- June 28, 2025: Fixed all registration and moderation issues + enhanced admin features
+  - ✅ Fixed registration modal - now works correctly after database reset
+  - ✅ Enhanced player profiles with detailed screenshot breakdown (approved/rejected/pending)
+  - ✅ Fixed screenshot status display in dropdown lists and detailed views
+  - ✅ Enhanced /admin_disqualify with "cancel" option to restore players
+  - ✅ Added automatic DM notifications for disqualification/restoration
+  - ✅ Improved error handling for all user interactions
+  - ✅ All interactive elements fully functional after fixes
+
 - June 28, 2025: Fixed all reported issues and enhanced functionality
   - ✅ Fixed screenshot status display - now properly shows approved/rejected/pending
   - ✅ Replaced Discord IDs with @tags in all statistics and displays

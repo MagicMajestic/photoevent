@@ -54,19 +54,22 @@ class RegistrationModal(discord.ui.Modal):
     def __init__(self):
         super().__init__(title="Регистрация на ивент")
         
-    static_id = discord.ui.InputText(
-        label='Ваш StaticID',
-        placeholder='Введите ваш StaticID',
-        required=True,
-        max_length=50
-    )
-    
-    nickname = discord.ui.InputText(
-        label='Ваш игровой Nickname',
-        placeholder='Введите ваш игровой никнейм',
-        required=True,
-        max_length=50
-    )
+        self.static_id = discord.ui.InputText(
+            label='Ваш StaticID',
+            placeholder='Введите ваш StaticID',
+            required=True,
+            max_length=50
+        )
+        
+        self.nickname = discord.ui.InputText(
+            label='Ваш игровой Nickname',
+            placeholder='Введите ваш игровой никнейм',
+            required=True,
+            max_length=50
+        )
+        
+        self.add_item(self.static_id)
+        self.add_item(self.nickname)
 
     async def callback(self, interaction: discord.Interaction):
         """Обработка отправки формы регистрации."""
@@ -262,7 +265,9 @@ class PlayerSelect(discord.ui.Select):
                 return
             
             submissions = database.get_player_submissions(selected_discord_id)
-            approved_count = len([s for s in submissions if s.get('is_approved')])
+            approved_count = len([s for s in submissions if s.get('is_approved') is True])
+            rejected_count = len([s for s in submissions if s.get('is_approved') is False])
+            pending_count = len([s for s in submissions if s.get('is_approved') is None])
             
             embed = discord.Embed(
                 title=f"👤 Профиль игрока",
@@ -271,8 +276,9 @@ class PlayerSelect(discord.ui.Select):
             embed.add_field(name="Никнейм", value=player['nickname'], inline=True)
             embed.add_field(name="Discord", value=get_user_tag(selected_discord_id), inline=True)
             embed.add_field(name="StaticID", value=player['static_id'], inline=True)
-            embed.add_field(name="Скриншотов", value=str(len(submissions)), inline=True)
-            embed.add_field(name="Одобрено", value=str(approved_count), inline=True)
+            embed.add_field(name="✅ Одобрено", value=str(approved_count), inline=True)
+            embed.add_field(name="❌ Отклонено", value=str(rejected_count), inline=True)
+            embed.add_field(name="⏳ На модерации", value=str(pending_count), inline=True)
             embed.add_field(name="Статус", value="❌ Дисквалифицирован" if player['is_disqualified'] else "✅ Активен", inline=True)
             
             # Добавляем выбор скриншотов если они есть
@@ -432,7 +438,9 @@ async def admin_profile(ctx, user: discord.Member):
             return
         
         submissions = database.get_player_submissions(user.id)
-        approved_count = len([s for s in submissions if s.get('is_approved')])
+        approved_count = len([s for s in submissions if s.get('is_approved') is True])
+        rejected_count = len([s for s in submissions if s.get('is_approved') is False])
+        pending_count = len([s for s in submissions if s.get('is_approved') is None])
         
         embed = discord.Embed(
             title=f"👤 Профиль игрока",
@@ -441,8 +449,9 @@ async def admin_profile(ctx, user: discord.Member):
         embed.add_field(name="Никнейм", value=player['nickname'], inline=True)
         embed.add_field(name="Discord", value=f"@{user.name}", inline=True)
         embed.add_field(name="StaticID", value=player['static_id'], inline=True)
-        embed.add_field(name="Скриншотов", value=str(len(submissions)), inline=True)
-        embed.add_field(name="Одобрено", value=str(approved_count), inline=True)
+        embed.add_field(name="✅ Одобрено", value=str(approved_count), inline=True)
+        embed.add_field(name="❌ Отклонено", value=str(rejected_count), inline=True)
+        embed.add_field(name="⏳ На модерации", value=str(pending_count), inline=True)
         embed.add_field(name="Статус", value="❌ Дисквалифицирован" if player['is_disqualified'] else "✅ Активен", inline=True)
         
         view = PlayerProfileView(submissions, player) if submissions else None
@@ -451,9 +460,9 @@ async def admin_profile(ctx, user: discord.Member):
         print(f"Ошибка команды /admin_profile: {e}")
         await ctx.respond("❌ Произошла ошибка.", ephemeral=True)
 
-@bot.slash_command(name='admin_disqualify', description='Дисквалификация игрока (только для администраторов)', guild_ids=[config.GUILD_ID])
-async def admin_disqualify(ctx, user: discord.Member):
-    """Команда для дисквалификации игрока."""
+@bot.slash_command(name='admin_disqualify', description='Управление дисквалификацией игрока (только для администраторов)', guild_ids=[config.GUILD_ID])
+async def admin_disqualify(ctx, user: discord.Member, action: discord.Option(str, "Действие", choices=["disqualify", "cancel"])):
+    """Команда для дисквалификации/снятия дисквалификации игрока."""
     try:
         if not await has_admin_permissions(ctx):
             return
@@ -463,17 +472,58 @@ async def admin_disqualify(ctx, user: discord.Member):
             await ctx.respond(f"❌ Пользователь {user.mention} не зарегистрирован.", ephemeral=True)
             return
         
-        success = database.disqualify_player(user.id)
-        
-        if success:
-            embed = discord.Embed(
-                title="⚠️ Игрок дисквалифицирован",
-                description=f"Пользователь {user.mention} был дисквалифицирован.\nВсе его скриншоты помечены как недействительные.",
-                color=0xFF0000
-            )
-            await ctx.respond(embed=embed, ephemeral=True)
-        else:
-            await ctx.respond("❌ Ошибка при дисквалификации.", ephemeral=True)
+        if action == "disqualify":
+            if player['is_disqualified']:
+                await ctx.respond(f"❌ Игрок {user.mention} уже дисквалифицирован.", ephemeral=True)
+                return
+                
+            if database.disqualify_player(user.id):
+                # Отправляем сообщение игроку о дисквалификации
+                try:
+                    dm_embed = discord.Embed(
+                        title="❌ Дисквалификация",
+                        description=f"Вы были дисквалифицированы с ивента.\n\nВаши скриншоты больше не учитываются в конкурсе.",
+                        color=0xFF0000
+                    )
+                    await user.send(embed=dm_embed)
+                except:
+                    pass  # Игнорируем ошибку если не удалось отправить ЛС
+                
+                embed = discord.Embed(
+                    title="❌ Игрок дисквалифицирован",
+                    description=f"**Игрок:** {player['nickname']} ({user.mention})\n**StaticID:** {player['static_id']}\n\nВсе скриншоты игрока помечены как недействительные.\nИгроку отправлено уведомление.",
+                    color=0xFF0000
+                )
+                await ctx.respond(embed=embed, ephemeral=True)
+            else:
+                await ctx.respond("❌ Ошибка при дисквалификации.", ephemeral=True)
+                
+        elif action == "cancel":
+            if not player['is_disqualified']:
+                await ctx.respond(f"❌ Игрок {user.mention} не дисквалифицирован.", ephemeral=True)
+                return
+                
+            if database.cancel_disqualification(user.id):
+                # Отправляем сообщение игроку о восстановлении
+                try:
+                    dm_embed = discord.Embed(
+                        title="✅ Восстановление",
+                        description=f"Ваша дисквалификация с ивента была отменена.\n\nВы снова можете участвовать в конкурсе!",
+                        color=config.RASPBERRY_COLOR
+                    )
+                    await user.send(embed=dm_embed)
+                except:
+                    pass  # Игнорируем ошибку если не удалось отправить ЛС
+                
+                embed = discord.Embed(
+                    title="✅ Дисквалификация отменена",
+                    description=f"**Игрок:** {player['nickname']} ({user.mention})\n**StaticID:** {player['static_id']}\n\nИгрок восстановлен в конкурсе.\nВсе его скриншоты снова действительны.\nИгроку отправлено уведомление.",
+                    color=config.RASPBERRY_COLOR
+                )
+                await ctx.respond(embed=embed, ephemeral=True)
+            else:
+                await ctx.respond("❌ Ошибка при отмене дисквалификации.", ephemeral=True)
+                
     except Exception as e:
         print(f"Ошибка команды /admin_disqualify: {e}")
         await ctx.respond("❌ Произошла ошибка.", ephemeral=True)

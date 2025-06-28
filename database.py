@@ -195,6 +195,31 @@ def disqualify_player(discord_id: int) -> bool:
         conn.close()
         return False
 
+def cancel_disqualification(discord_id: int) -> bool:
+    """
+    Снимает дисквалификацию с игрока и восстанавливает действительность его скриншотов.
+    """
+    conn = sqlite3.connect(DATABASE_NAME)
+    cursor = conn.cursor()
+    
+    try:
+        # Снимаем дисквалификацию
+        cursor.execute('''
+            UPDATE players SET is_disqualified = FALSE WHERE discord_id = ?
+        ''', (discord_id,))
+        
+        # Восстанавливаем действительность скриншотов
+        cursor.execute('''
+            UPDATE submissions SET is_valid = TRUE WHERE player_id = ?
+        ''', (discord_id,))
+        
+        conn.commit()
+        conn.close()
+        return True
+    except sqlite3.Error:
+        conn.close()
+        return False
+
 def is_player_disqualified(discord_id: int) -> bool:
     """Проверяет, дисквалифицирован ли игрок."""
     conn = sqlite3.connect(DATABASE_NAME)
