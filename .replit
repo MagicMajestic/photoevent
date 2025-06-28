@@ -25,7 +25,7 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python main_simple.py"
+args = "python main_working.py"
 
 [[workflows.workflow]]
 name = "discord_bot"
