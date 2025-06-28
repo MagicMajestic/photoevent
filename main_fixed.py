@@ -211,9 +211,10 @@ class ScreenshotSelect(discord.ui.Select):
             await interaction.response.send_message("❌ Произошла ошибка.", ephemeral=True)
 
 class RejectReasonModal(discord.ui.Modal):
-    def __init__(self, submission_id):
+    def __init__(self, submission_id, view):
         super().__init__(title="Причина отклонения скриншота")
         self.submission_id = submission_id
+        self.view = view
         
         self.reason = discord.ui.InputText(
             label="Причина отклонения",
@@ -241,6 +242,7 @@ class RejectReasonModal(discord.ui.Modal):
             success = database.reject_screenshot(self.submission_id)
             if success:
                 # Отправляем уведомление игроку
+                notification_sent = False
                 try:
                     user = bot.get_user(submission['discord_id'])
                     if user:
@@ -251,10 +253,18 @@ class RejectReasonModal(discord.ui.Modal):
                         )
                         embed.set_image(url=submission['screenshot_url'])
                         await user.send(embed=embed)
+                        notification_sent = True
                 except Exception as e:
                     print(f"Ошибка отправки уведомления: {e}")
                 
-                await interaction.response.send_message(f"❌ Скриншот отклонен!\nПричина: {self.reason.value}\nИгроку отправлено уведомление.", ephemeral=True)
+                # Отправляем ответ с информацией о результате
+                status_message = f"❌ Скриншот отклонен!\nПричина: {self.reason.value}"
+                if notification_sent:
+                    status_message += "\nИгроку отправлено уведомление."
+                else:
+                    status_message += "\n⚠️ Не удалось отправить уведомление игроку."
+                
+                await interaction.response.send_message(status_message, ephemeral=True)
             else:
                 await interaction.response.send_message("❌ Ошибка при отклонении.", ephemeral=True)
         except Exception as e:
@@ -289,7 +299,7 @@ class ScreenshotModerationView(discord.ui.View):
                     if user:
                         embed = discord.Embed(
                             title="✅ Скриншот одобрен!",
-                            description=f"**Скриншот #{self.submission_id}** был одобрен администратором!\n\n💰 **Награда:** $10,000\n\nПродолжайте искать локации!",
+                            description=f"**Скриншот #{self.submission_id}** был одобрен администратором!\n\nПродолжайте искать локации!",
                             color=config.RASPBERRY_COLOR
                         )
                         embed.set_image(url=submission['screenshot_url'])
@@ -297,12 +307,19 @@ class ScreenshotModerationView(discord.ui.View):
                 except Exception as e:
                     print(f"Ошибка отправки уведомления: {e}")
                 
-                await interaction.response.send_message("✅ Скриншот одобрен!\nИгроку отправлено уведомление о награде $10,000.", ephemeral=True)
+                # Обновляем кнопки после одобрения
+                button.disabled = True
+                button.style = discord.ButtonStyle.secondary
+                button.label = "✅ Одобрено"
                 
-                # Обновляем интерфейс - отключаем кнопки
+                # Отключаем кнопку отклонения
                 for item in self.children:
-                    item.disabled = True
-                await interaction.edit_original_response(view=self)
+                    if item.label and "Отклонить" in item.label:
+                        item.disabled = True
+                        item.style = discord.ButtonStyle.secondary
+                
+                await interaction.response.edit_message(view=self)
+                await interaction.followup.send("✅ Скриншот одобрен!\nИгроку отправлено уведомление.", ephemeral=True)
             else:
                 await interaction.response.send_message("❌ Ошибка при одобрении.", ephemeral=True)
         except Exception as e:
@@ -312,7 +329,7 @@ class ScreenshotModerationView(discord.ui.View):
     @discord.ui.button(label="❌ Отклонить", style=discord.ButtonStyle.danger)
     async def reject_button(self, button: discord.ui.Button, interaction: discord.Interaction):
         try:
-            modal = RejectReasonModal(self.submission_id)
+            modal = RejectReasonModal(self.submission_id, self)
             await interaction.response.send_modal(modal)
         except Exception as e:
             print(f"Ошибка отклонения: {e}")

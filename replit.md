@@ -61,6 +61,14 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+- June 28, 2025: Successfully migrated from Replit Agent to Replit environment
+  - ✅ Fixed dependency conflicts between discord.py and py-cord
+  - ✅ Bot connects successfully and runs without errors
+  - ✅ Fixed notification system - players now receive actual DM messages
+  - ✅ Removed incorrect $10,000 reward message from approvals
+  - ✅ Enhanced button states to update properly after moderation actions
+  - ✅ All core functionality working: registration, screenshot submission, admin moderation
+
 - June 28, 2025: Fixed moderation system and enhanced notification features
   - ✅ Fixed screenshot status updates - now properly shows after moderation in profile
   - ✅ Added automatic user notifications for screenshot approval/rejection

@@ -2,7 +2,7 @@
 import os
 
 # Токен бота (будет загружаться из переменных окружения)
-BOT_TOKEN = os.getenv("BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
+BOT_TOKEN = "MTM4ODMwNjA2NTUyMjY4ODExNA.GqzQyv.8UpsiSSxsAM2Gq27HJeLaW7mA8SUPnZk5qzP3k"
 
 # ID вашего сервера (гильдии) - замените на реальный ID
 GUILD_ID = 1369298072647106641
