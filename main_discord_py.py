@@ -813,39 +813,73 @@ async def calculate_payments(interaction: discord.Interaction):
     approved_stats = database.get_approved_screenshots_stats()
     
     if not approved_stats:
-        await interaction.followup.send("❌ Нет игроков с одобренными скриншотами.", ephemeral=True)
+        embed = discord.Embed(
+            title="💰 Расчет выплат",
+            description="❌ Нет игроков с одобренными скриншотами для выплат.",
+            color=config.RASPBERRY_COLOR
+        )
+        await interaction.followup.send(embed=embed, ephemeral=True)
         return
     
-    payment_text = "**Команды для выплат:**\n\n"
+    # Подсчитываем общую статистику
+    total_players = len([p for p in approved_stats if p[3] > 0])
+    total_screenshots = sum(p[3] for p in approved_stats)
+    total_amount = total_screenshots * 10000
     
+    # Создаем основной embed с информацией
+    main_embed = discord.Embed(
+        title="💰 Расчет выплат участникам ивента",
+        description=f"**Общая статистика:**\n"
+                   f"👥 Игроков к выплате: {total_players}\n"
+                   f"📸 Одобренных скриншотов: {total_screenshots}\n"
+                   f"💵 Общая сумма: {total_amount:,} монет\n\n"
+                   f"**Формат команды:** `/givemoney StaticID сумма EventMagic`\n"
+                   f"**Награда:** 10,000 монет за каждый одобренный скриншот",
+        color=config.RASPBERRY_COLOR
+    )
+    main_embed.set_footer(text="Скопируйте команды из сообщений ниже")
+    
+    await interaction.followup.send(embed=main_embed, ephemeral=True)
+    
+    # Создаем команды выплат
+    payment_commands = []
     for discord_id, nickname, static_id, approved_count in approved_stats:
         if approved_count > 0:
-            amount = approved_count * 10000  # 10,000 за каждый одобренный скриншот
-            payment_text += f"/givemoney {static_id} {amount}\n"
+            amount = approved_count * 10000
+            payment_commands.append(f"/givemoney {static_id} {amount} EventMagic")
     
-    if len(payment_text) > 1900:  # Ограничение Discord
-        # Разбиваем на части
-        chunks = []
-        lines = payment_text.split('\n')
-        current_chunk = "**Команды для выплат:**\n\n"
+    # Разбиваем команды на группы для удобного копирования
+    commands_per_message = 10
+    for i in range(0, len(payment_commands), commands_per_message):
+        chunk_commands = payment_commands[i:i + commands_per_message]
         
-        for line in lines[2:]:  # Пропускаем заголовок
-            if len(current_chunk + line + '\n') > 1900:
-                chunks.append(current_chunk)
-                current_chunk = line + '\n'
-            else:
-                current_chunk += line + '\n'
+        # Создаем embed для группы команд
+        chunk_embed = discord.Embed(
+            title=f"📋 Команды выплат (группа {i//commands_per_message + 1})",
+            description="```\n" + "\n".join(chunk_commands) + "\n```",
+            color=config.RASPBERRY_COLOR
+        )
         
-        if current_chunk.strip():
-            chunks.append(current_chunk)
+        # Добавляем информацию о игроках в этой группе
+        players_info = []
+        for cmd in chunk_commands:
+            static_id = cmd.split()[1]
+            # Находим игрока по static_id
+            for discord_id, nickname, player_static_id, approved_count in approved_stats:
+                if player_static_id == static_id:
+                    amount = approved_count * 10000
+                    players_info.append(f"• {nickname} ({static_id}): {approved_count} скриншотов = {amount:,} монет")
+                    break
         
-        for i, chunk in enumerate(chunks):
-            if i == 0:
-                await interaction.followup.send(f"```{chunk}```", ephemeral=True)
-            else:
-                await interaction.followup.send(f"```{chunk}```", ephemeral=True)
-    else:
-        await interaction.followup.send(f"```{payment_text}```", ephemeral=True)
+        chunk_embed.add_field(
+            name="Детали выплат:",
+            value="\n".join(players_info),
+            inline=False
+        )
+        
+        chunk_embed.set_footer(text="Выделите текст в блоке выше для быстрого копирования")
+        
+        await interaction.followup.send(embed=chunk_embed, ephemeral=True)
 
 @bot.tree.command(name="reset_stats", description="Сброс всех статистик (только для админов)")
 async def reset_statistics(interaction: discord.Interaction):

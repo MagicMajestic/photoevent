@@ -72,6 +72,8 @@ Preferred communication style: Simple, everyday language.
   - ✅ Added comprehensive welcome message with event rules for new registrations
   - ✅ Improved screenshot submission responses with embedded image previews
   - ✅ Enhanced approval/rejection notifications with better visual design and screenshot thumbnails
+  - ✅ Enhanced payment calculation system with beautiful embeds and EventMagic parameter
+  - ✅ Added grouped payment commands with easy copy functionality and detailed breakdown
 
 - June 28, 2025: Successfully migrated to discord.py 2.5.2 for compatibility
   - ✅ Migrated from py-cord to discord.py 2.5.2 to avoid conflicts with user's other bots
