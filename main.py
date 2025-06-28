@@ -216,14 +216,18 @@ async def has_admin_permissions(interaction: discord.Interaction) -> bool:
     if not interaction.guild or interaction.guild.id != config.GUILD_ID:
         return False
     
-    # Получаем участника через взаимодействие
-    member = interaction.user
-    if not hasattr(member, 'guild_permissions'):
-        # Если это User, а не Member, получаем Member объект
-        member = await interaction.guild.fetch_member(interaction.user.id)
-    
-    # Проверяем права администратора
-    return member.guild_permissions.administrator
+    try:
+        # Получаем участника через guild
+        member = interaction.guild.get_member(interaction.user.id)
+        if member is None:
+            # Если не найден в кэше, получаем через fetch
+            member = await interaction.guild.fetch_member(interaction.user.id)
+        
+        # Проверяем права администратора
+        return member.guild_permissions.administrator
+    except Exception as e:
+        print(f"Ошибка проверки прав: {e}")
+        return False
 
 class PlayerListView(discord.ui.View):
     """Выпадающее меню для выбора игрока из списка."""
@@ -312,6 +316,7 @@ async def admin_stats(interaction: discord.Interaction):
         return
     
     # Получаем полный список игроков с дополнительной информацией
+    import sqlite3
     conn = sqlite3.connect('event_data.db')
     cursor = conn.cursor()
     
