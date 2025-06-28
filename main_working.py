@@ -199,11 +199,8 @@ async def has_admin_permissions(ctx) -> bool:
     
     return True
 
-class PlayerListView(discord.ui.View):
+class PlayerSelect(discord.ui.Select):
     def __init__(self, players_data):
-        super().__init__(timeout=60)
-        self.players_data = players_data
-        
         # Создаем опции для выпадающего меню
         options = []
         for player in players_data[:25]:  # Discord ограничивает до 25 опций
@@ -223,16 +220,20 @@ class PlayerListView(discord.ui.View):
                 value=str(discord_id)
             ))
         
-        if options:
-            self.select_menu.options = options
-        else:
-            self.select_menu.disabled = True
-            self.select_menu.placeholder = "Нет зарегистрированных игроков"
+        placeholder = "Выберите игрока для просмотра профиля..." if options else "Нет зарегистрированных игроков"
+        
+        super().__init__(
+            placeholder=placeholder,
+            options=options if options else [discord.SelectOption(label="Пусто", value="0")],
+            disabled=not options
+        )
 
-    @discord.ui.select(placeholder="Выберите игрока для просмотра профиля...")
-    async def select_player(self, select: discord.ui.Select, interaction: discord.Interaction):
+    async def callback(self, interaction: discord.Interaction):
         """Обработка выбора игрока."""
-        selected_discord_id = int(select.values[0])
+        if self.disabled:
+            return
+            
+        selected_discord_id = int(self.values[0])
         
         # Получаем данные игрока
         player = database.get_player(selected_discord_id)
@@ -257,6 +258,11 @@ class PlayerListView(discord.ui.View):
         embed.add_field(name="Статус", value="❌ Дисквалифицирован" if player['is_disqualified'] else "✅ Активен", inline=True)
         
         await interaction.response.send_message(embed=embed, ephemeral=True)
+
+class PlayerListView(discord.ui.View):
+    def __init__(self, players_data):
+        super().__init__(timeout=60)
+        self.add_item(PlayerSelect(players_data))
 
 @bot.slash_command(name='admin_stats', description='Статистика ивента (только для администраторов)')
 async def admin_stats(ctx):
