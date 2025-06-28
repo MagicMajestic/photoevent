@@ -61,6 +61,13 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+- June 28, 2025: Enhanced user experience and scalability features
+  - ✅ Players now receive personal screenshot numbers (1st, 2nd, 3rd) instead of system IDs
+  - ✅ Added pagination system for admin stats to handle 100+ participants
+  - ✅ Each page shows 25 participants with navigation buttons
+  - ✅ Page indicators show current position (e.g., "page 1/5")
+  - ✅ System now scales to unlimited number of participants
+
 - June 28, 2025: Successfully migrated from Replit Agent to Replit environment
   - ✅ Fixed dependency conflicts between discord.py and py-cord
   - ✅ Bot connects successfully and runs without errors

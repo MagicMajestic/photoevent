@@ -367,9 +367,19 @@ class ScreenshotModerationView(discord.ui.View):
             await interaction.response.send_message("❌ Произошла ошибка.", ephemeral=True)
 
 class PlayerSelect(discord.ui.Select):
-    def __init__(self, players_data):
+    def __init__(self, players_data, page=0):
+        self.page = page
+        self.players_per_page = 25
+        self.total_players = len(players_data)
+        self.total_pages = max(1, (self.total_players - 1) // self.players_per_page + 1)
+        
+        # Получаем игроков для текущей страницы
+        start_idx = page * self.players_per_page
+        end_idx = start_idx + self.players_per_page
+        current_page_players = players_data[start_idx:end_idx]
+        
         options = []
-        for player in players_data[:25]:
+        for player in current_page_players:
             discord_id, nickname, screenshot_count = player
             display_name = get_user_tag(discord_id)
             
@@ -382,7 +392,7 @@ class PlayerSelect(discord.ui.Select):
                 value=str(discord_id)
             ))
         
-        placeholder = "Выберите игрока для просмотра профиля..." if options else "Нет зарегистрированных игроков"
+        placeholder = f"Выберите игрока (стр. {page + 1}/{self.total_pages})..." if options else "Нет зарегистрированных игроков"
         
         super().__init__(
             placeholder=placeholder,
@@ -435,8 +445,78 @@ class PlayerProfileView(discord.ui.View):
 
 class PlayerListView(discord.ui.View):
     def __init__(self, players_data):
-        super().__init__(timeout=60)
-        self.add_item(PlayerSelect(players_data))
+        super().__init__(timeout=300)
+        self.players_data = players_data
+        self.current_page = 0
+        self.total_pages = max(1, (len(players_data) - 1) // 25 + 1)
+        
+        # Добавляем выпадающий список для текущей страницы
+        self.player_select = PlayerSelect(players_data, self.current_page)
+        self.add_item(self.player_select)
+        
+        # Добавляем кнопки навигации только если больше одной страницы
+        if self.total_pages > 1:
+            self.update_navigation_buttons()
+    
+    def update_navigation_buttons(self):
+        """Обновляет состояние кнопок навигации"""
+        # Удаляем старые кнопки навигации если они есть
+        items_to_remove = []
+        for item in self.children:
+            if hasattr(item, 'custom_id') and item.custom_id in ['prev_page', 'next_page']:
+                items_to_remove.append(item)
+        
+        for item in items_to_remove:
+            self.remove_item(item)
+        
+        # Добавляем новые кнопки
+        prev_button = discord.ui.Button(
+            style=discord.ButtonStyle.secondary,
+            label="◀ Предыдущая",
+            disabled=self.current_page <= 0,
+            custom_id='prev_page'
+        )
+        prev_button.callback = self.prev_page
+        
+        next_button = discord.ui.Button(
+            style=discord.ButtonStyle.secondary,
+            label="Следующая ▶",
+            disabled=self.current_page >= self.total_pages - 1,
+            custom_id='next_page'
+        )
+        next_button.callback = self.next_page
+        
+        self.add_item(prev_button)
+        self.add_item(next_button)
+    
+    async def prev_page(self, interaction: discord.Interaction):
+        """Переход на предыдущую страницу"""
+        if self.current_page > 0:
+            self.current_page -= 1
+            await self.update_page(interaction)
+    
+    async def next_page(self, interaction: discord.Interaction):
+        """Переход на следующую страницу"""
+        if self.current_page < self.total_pages - 1:
+            self.current_page += 1
+            await self.update_page(interaction)
+    
+    async def update_page(self, interaction: discord.Interaction):
+        """Обновляет страницу с новым списком игроков"""
+        # Удаляем старый select
+        self.remove_item(self.player_select)
+        
+        # Создаем новый select для текущей страницы
+        self.player_select = PlayerSelect(self.players_data, self.current_page)
+        self.add_item(self.player_select)
+        
+        # Обновляем кнопки навигации
+        self.update_navigation_buttons()
+        
+        # Получаем оригинальное embed сообщение для обновления
+        original_embed = interaction.message.embeds[0] if interaction.message.embeds else None
+        
+        await interaction.response.edit_message(embed=original_embed, view=self)
 
 @bot.event
 async def on_ready():
