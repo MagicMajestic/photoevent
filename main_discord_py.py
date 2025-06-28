@@ -107,14 +107,16 @@ class RegistrationModal(discord.ui.Modal):
             # Отправляем личное сообщение с подтверждением регистрации
             try:
                 dm_embed = discord.Embed(
-                    title="🎮 Регистрация на ивент завершена!",
-                    description=f"Поздравляем! Вы успешно зарегистрированы на ивент.\n\n"
-                               f"**Ваши данные:**\n"
-                               f"• StaticID: {self.static_id.value}\n"
-                               f"• Nickname: {self.nickname.value}\n\n"
-                               f"**Как участвовать:**\n"
-                               f"Отправляйте скриншоты прямо сюда, в личные сообщения боту.\n"
-                               f"Период ивента: {format_event_dates()}",
+                    title="🎮 Добро пожаловать на ивент!",
+                    description=f"Вы успешно зарегистрированы! Теперь всё взаимодействие происходит здесь, в личных сообщениях со мной.\n\n"
+                               f"**Правила участия:**\n"
+                               f"• Просто отправляйте скриншоты найденных локаций мне в этот чат.\n"
+                               f"• На скриншоте обязательно должен быть виден ваш игровой HUD.\n"
+                               f"• С каждой уникальной локации принимается только один скриншот.\n"
+                               f"• Жульничество, передача скриншотов или обман = полная дисквалификация и обнуление всего вашего прогресса.\n\n"
+                               f"**Сроки проведения:**\n"
+                               f"Скриншоты принимаются {format_event_dates()}.\n\n"
+                               f"**Удачи в поисках!**",
                     color=config.RASPBERRY_COLOR
                 )
                 await interaction.user.send(embed=dm_embed)
@@ -216,10 +218,17 @@ class RejectReasonModal(discord.ui.Modal):
                     print(f"✅ Пользователь найден: {user.name}")
                     screenshot_number = database.get_player_screenshot_number(submission['discord_id'], self.submission_id)
                     embed = discord.Embed(
-                        title="❌ Скриншот отклонен",
-                        description=f"Ваш скриншот #{screenshot_number} был отклонен.\n\n**Причина:** {self.reason.value}",
+                        title="⚠️ Скриншот отклонен",
+                        description=f"К сожалению, ваш скриншот #{screenshot_number} не прошел модерацию.\n\n"
+                                   f"❌ **Статус:** Отклонено\n"
+                                   f"📝 **Причина отклонения:**\n{self.reason.value}\n\n"
+                                   f"💡 **Что делать:**\n"
+                                   f"Изучите причину отклонения и отправьте новый скриншот, учитывая указанные замечания.\n\n"
+                                   f"**Удачи в следующих попытках!**",
                         color=config.RASPBERRY_COLOR
                     )
+                    embed.set_image(url=submission['screenshot_url'])
+                    embed.set_footer(text="Не расстраивайтесь! Попробуйте еще раз с учетом замечаний.")
                     print(f"📨 Отправка DM об отклонении пользователю {user.name}...")
                     await user.send(embed=embed)
                     print(f"✅ Уведомление об отклонении отправлено пользователю {user.name}")
@@ -231,10 +240,17 @@ class RejectReasonModal(discord.ui.Modal):
                         print(f"✅ Пользователь найден через fetch_user: {user.name}")
                         screenshot_number = database.get_player_screenshot_number(submission['discord_id'], self.submission_id)
                         embed = discord.Embed(
-                            title="❌ Скриншот отклонен",
-                            description=f"Ваш скриншот #{screenshot_number} был отклонен.\n\n**Причина:** {self.reason.value}",
+                            title="⚠️ Скриншот отклонен",
+                            description=f"К сожалению, ваш скриншот #{screenshot_number} не прошел модерацию.\n\n"
+                                       f"❌ **Статус:** Отклонено\n"
+                                       f"📝 **Причина отклонения:**\n{self.reason.value}\n\n"
+                                       f"💡 **Что делать:**\n"
+                                       f"Изучите причину отклонения и отправьте новый скриншот, учитывая указанные замечания.\n\n"
+                                       f"**Удачи в следующих попытках!**",
                             color=config.RASPBERRY_COLOR
                         )
+                        embed.set_image(url=submission['screenshot_url'])
+                        embed.set_footer(text="Не расстраивайтесь! Попробуйте еще раз с учетом замечаний.")
                         print(f"📨 Отправка DM об отклонении пользователю {user.name} через fetch_user...")
                         await user.send(embed=embed)
                         print(f"✅ Уведомление об отклонении отправлено пользователю {user.name}")
@@ -283,10 +299,15 @@ class ScreenshotModerationView(discord.ui.View):
                     print(f"✅ Пользователь найден: {user.name}")
                     screenshot_number = database.get_player_screenshot_number(submission['discord_id'], self.submission_id)
                     embed = discord.Embed(
-                        title="✅ Скриншот одобрен",
-                        description=f"Ваш скриншот #{screenshot_number} был одобрен!",
+                        title="🎉 Скриншот одобрен!",
+                        description=f"**Отличная работа!** Ваш скриншот #{screenshot_number} успешно прошел модерацию.\n\n"
+                                   f"✅ **Статус:** Одобрено\n"
+                                   f"📊 **Прогресс:** Скриншот засчитан в вашу статистику\n\n"
+                                   f"**Продолжайте в том же духе!**",
                         color=config.RASPBERRY_COLOR
                     )
+                    embed.set_image(url=submission['screenshot_url'])
+                    embed.set_footer(text="Спасибо за участие в ивенте!")
                     print(f"📨 Отправка DM пользователю {user.name}...")
                     await user.send(embed=embed)
                     print(f"✅ Уведомление об одобрении отправлено пользователю {user.name}")
@@ -298,10 +319,15 @@ class ScreenshotModerationView(discord.ui.View):
                         print(f"✅ Пользователь найден через fetch_user: {user.name}")
                         screenshot_number = database.get_player_screenshot_number(submission['discord_id'], self.submission_id)
                         embed = discord.Embed(
-                            title="✅ Скриншот одобрен",
-                            description=f"Ваш скриншот #{screenshot_number} был одобрен!",
+                            title="🎉 Скриншот одобрен!",
+                            description=f"**Отличная работа!** Ваш скриншот #{screenshot_number} успешно прошел модерацию.\n\n"
+                                       f"✅ **Статус:** Одобрено\n"
+                                       f"📊 **Прогресс:** Скриншот засчитан в вашу статистику\n\n"
+                                       f"**Продолжайте в том же духе!**",
                             color=config.RASPBERRY_COLOR
                         )
+                        embed.set_image(url=submission['screenshot_url'])
+                        embed.set_footer(text="Спасибо за участие в ивенте!")
                         print(f"📨 Отправка DM пользователю {user.name} через fetch_user...")
                         await user.send(embed=embed)
                         print(f"✅ Уведомление об одобрении отправлено пользователю {user.name}")
@@ -339,9 +365,16 @@ class PlayerSelect(discord.ui.Select):
         for player in current_players:
             discord_id, nickname, total_screenshots, approved_count = player
             user_tag = get_user_tag(discord_id)
+            
+            # Получаем реальную статистику для каждого игрока
+            submissions = database.get_player_submissions(discord_id)
+            approved_count_real = sum(1 for s in submissions if s.get('is_approved') == 1)
+            rejected_count_real = sum(1 for s in submissions if s.get('is_approved') == 0)
+            pending_count_real = sum(1 for s in submissions if s.get('is_approved') is None)
+            
             options.append(discord.SelectOption(
                 label=f"{user_tag} - {nickname}",
-                description=f"✅{approved_count} ❌{total_screenshots-approved_count} ⏳0",
+                description=f"✅{approved_count_real} ❌{rejected_count_real} ⏳{pending_count_real}",
                 value=str(discord_id)
             ))
         
@@ -570,15 +603,20 @@ async def on_message(message):
     if success:
         submissions_count = len(database.get_player_submissions(message.author.id))
         embed = discord.Embed(
-            title="✅ Скриншот принят!",
-            description=f"Ваш скриншот #{submissions_count} успешно отправлен на модерацию.\n\n"
-                       f"Вы получите уведомление о результатах проверки.",
+            title="✅ Скриншот принят на модерацию!",
+            description=f"**Скриншот #{submissions_count}** успешно получен и отправлен на проверку.\n\n"
+                       f"📋 **Статус:** На модерации ⏳\n"
+                       f"🔔 **Уведомления:** Вы получите сообщение о результатах проверки\n\n"
+                       f"**Спасибо за участие в ивенте!**",
             color=config.RASPBERRY_COLOR
         )
+        embed.set_image(url=attachment.url)
+        embed.set_footer(text=f"Игрок: {player['nickname']} | StaticID: {player['static_id']}")
     else:
         embed = discord.Embed(
-            title="❌ Ошибка",
-            description="Произошла ошибка при сохранении скриншота. Попробуйте еще раз.",
+            title="❌ Ошибка при сохранении",
+            description="Произошла ошибка при обработке вашего скриншота. Пожалуйста, попробуйте отправить его еще раз.\n\n"
+                       f"Если проблема повторяется, обратитесь к администраторам.",
             color=config.RASPBERRY_COLOR
         )
     

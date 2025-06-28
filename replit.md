@@ -67,6 +67,11 @@ Preferred communication style: Simple, everyday language.
   - ✅ Bot connects successfully and all core functionality preserved
   - ✅ Added comprehensive error handling and user lookup fallback methods
   - ✅ Resolved import conflicts between discord.py and py-cord libraries
+  - ✅ Fixed dropdown status display bug showing incorrect pending counts
+  - ✅ Enhanced visual formatting with proper raspberry color scheme
+  - ✅ Added comprehensive welcome message with event rules for new registrations
+  - ✅ Improved screenshot submission responses with embedded image previews
+  - ✅ Enhanced approval/rejection notifications with better visual design and screenshot thumbnails
 
 - June 28, 2025: Successfully migrated to discord.py 2.5.2 for compatibility
   - ✅ Migrated from py-cord to discord.py 2.5.2 to avoid conflicts with user's other bots
