@@ -61,6 +61,14 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+- June 28, 2025: Successfully migrated from Replit Agent to Replit environment
+  - ✅ Fixed security vulnerability - removed hardcoded bot token from config.py
+  - ✅ Updated config.py to properly load BOT_TOKEN from environment variables
+  - ✅ Installed all required dependencies (py-cord, python-dotenv, pytz)
+  - ✅ Bot connects successfully with updated token (Фотограф#3534)
+  - ✅ Migration completed with proper environment variable management
+  - ✅ All project structure and functionality preserved
+
 - June 28, 2025: Completed all fixes and created production deployment guide
   - ✅ Fixed statistics consistency between admin_profile and admin_stats dropdown interfaces
   - ✅ Fixed screenshot status display in profile dropdowns - now updates correctly after moderation
