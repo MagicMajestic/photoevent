@@ -15,8 +15,8 @@ load_dotenv()
 
 # Настройка интентов для бота
 intents = discord.Intents.default()
-# Отключаем привилегированные интенты для первоначального запуска
-intents.message_content = False
+# Включаем необходимые интенты
+intents.message_content = True
 intents.dm_messages = True
 intents.members = False
 
