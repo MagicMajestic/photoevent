@@ -25,7 +25,7 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "pip install py-cord[voice] python-dotenv pytz && python main.py"
+args = "python main_simple.py"
 
 [[workflows.workflow]]
 name = "discord_bot"

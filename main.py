@@ -1,7 +1,6 @@
-# main.py - Discord bot using standard discord.py
+# main.py - Discord bot using py-cord
 import os
 import discord
-from discord.ext import commands
 import datetime
 import pytz
 from dotenv import load_dotenv
@@ -20,8 +19,8 @@ intents.message_content = True
 intents.dm_messages = True
 intents.members = False
 
-# Создание экземпляра бота с использованием standard discord.py
-bot = commands.Bot(command_prefix='!', intents=intents)
+# Создание экземпляра бота с использованием py-cord
+bot = discord.Bot(intents=intents)
 
 def is_event_active() -> bool:
     """Проверяет, активен ли ивент в настоящее время."""
@@ -56,14 +55,14 @@ def format_event_dates() -> str:
 class RegistrationModal(discord.ui.Modal, title='Регистрация на ивент'):
     """Модальное окно для регистрации на ивент."""
     
-    static_id = discord.ui.TextInput(
+    static_id = discord.ui.InputText(
         label='Ваш StaticID',
         placeholder='Введите ваш StaticID',
         required=True,
         max_length=50
     )
     
-    nickname = discord.ui.TextInput(
+    nickname = discord.ui.InputText(
         label='Ваш игровой Nickname',
         placeholder='Введите ваш игровой никнейм',
         required=True,
@@ -152,11 +151,11 @@ async def on_ready():
     except Exception as e:
         print(f"Ошибка синхронизации команд: {e}")
 
-@bot.tree.command(name='start', description='Регистрация на ивент поиска локаций')
-async def start_registration(interaction: discord.Interaction):
+@bot.slash_command(name='start', description='Регистрация на ивент поиска локаций')
+async def start_registration(ctx):
     """Слэш-команда для начала регистрации на ивент."""
-    if interaction.guild and interaction.guild.id != config.GUILD_ID:
-        await interaction.response.send_message("❌ Команда недоступна на этом сервере.", ephemeral=True)
+    if ctx.guild and ctx.guild.id != config.GUILD_ID:
+        await ctx.respond("❌ Команда недоступна на этом сервере.", ephemeral=True)
         return
     
     embed = discord.Embed(
@@ -166,7 +165,7 @@ async def start_registration(interaction: discord.Interaction):
     )
     
     view = RegistrationView()
-    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+    await ctx.respond(embed=embed, view=view, ephemeral=True)
 
 @bot.event
 async def on_message(message):
@@ -440,7 +439,7 @@ class ScreenshotPaginator(discord.ui.View):
         return embed
     
     @discord.ui.button(label="◀ Назад", style=discord.ButtonStyle.secondary)
-    async def prev_button(self, button: discord.ui.Button, interaction: discord.Interaction):
+    async def prev_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Кнопка для перехода на предыдущую страницу."""
         if self.current_page > 0:
             self.current_page -= 1
@@ -450,7 +449,7 @@ class ScreenshotPaginator(discord.ui.View):
             await interaction.response.defer()
     
     @discord.ui.button(label="Вперед ▶", style=discord.ButtonStyle.secondary)
-    async def next_button(self, button: discord.ui.Button, interaction: discord.Interaction):
+    async def next_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Кнопка для перехода на следующую страницу."""
         if self.current_page < self.max_page:
             self.current_page += 1
