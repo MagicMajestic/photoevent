@@ -498,17 +498,57 @@ async def has_admin_permissions(interaction: discord.Interaction) -> bool:
     if not interaction.guild:
         return False
     
-    member = interaction.guild.get_member(interaction.user.id)
-    if not member:
-        return False
+    # Пытаемся получить участника через interaction
+    member = interaction.user
+    if hasattr(member, 'guild_permissions') and member.guild_permissions:
+        return member.guild_permissions.administrator
     
-    return member.guild_permissions.administrator
+    # Альтернативный способ - получаем участника через guild
+    try:
+        guild_member = interaction.guild.get_member(interaction.user.id)
+        if guild_member:
+            return guild_member.guild_permissions.administrator
+            
+        # Если get_member не работает, используем fetch_member
+        guild_member = await interaction.guild.fetch_member(interaction.user.id)
+        if guild_member:
+            return guild_member.guild_permissions.administrator
+    except:
+        pass
+    
+    # Проверяем роли на наличие прав администратора
+    try:
+        if hasattr(interaction.user, 'roles'):
+            for role in interaction.user.roles:
+                if role.permissions.administrator:
+                    return True
+    except:
+        pass
+    
+    return False
 
 @bot.tree.command(name="admin_stats", description="Получить статистику ивента (только для админов)")
 async def admin_stats(interaction: discord.Interaction):
     """Команда для получения статистики ивента."""
-    if not await has_admin_permissions(interaction):
-        await interaction.response.send_message("❌ У вас нет прав для использования этой команды.", ephemeral=True)
+    # Диагностическая информация
+    debug_info = f"User: {interaction.user}\nGuild: {interaction.guild}\n"
+    if interaction.guild:
+        try:
+            member = interaction.guild.get_member(interaction.user.id)
+            if member:
+                debug_info += f"Member found: {member}\nAdmin perms: {member.guild_permissions.administrator}\n"
+                debug_info += f"Roles: {[role.name for role in member.roles]}\n"
+            else:
+                debug_info += "Member not found with get_member\n"
+        except Exception as e:
+            debug_info += f"Error getting member: {e}\n"
+    
+    has_perms = await has_admin_permissions(interaction)
+    if not has_perms:
+        await interaction.response.send_message(
+            f"❌ У вас нет прав для использования этой команды.\n\nДиагностика:\n```{debug_info}```", 
+            ephemeral=True
+        )
         return
     
     await interaction.response.defer(ephemeral=True)
