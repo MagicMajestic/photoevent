@@ -383,8 +383,21 @@ class PlayerSelect(discord.ui.Select):
             discord_id, nickname, screenshot_count = player
             display_name = get_user_tag(discord_id)
             
+            # Получаем детальную статистику модерации для каждого игрока
+            submissions = database.get_player_submissions(discord_id)
+            approved_count = len([s for s in submissions if s.get('is_approved') is True])
+            rejected_count = len([s for s in submissions if s.get('is_approved') is False])
+            pending_count = len([s for s in submissions if s.get('is_approved') is None])
+            
             label = f"{nickname} ({display_name})"
-            description = f"Скриншотов: {screenshot_count}"
+            
+            # Формируем описание с статистикой модерации
+            if screenshot_count == 0:
+                description = "Нет скриншотов"
+            else:
+                description = f"✅{approved_count} ❌{rejected_count} ⏳{pending_count}"
+                if pending_count > 0:
+                    description += " • ТРЕБУЕТ МОДЕРАЦИИ"
             
             options.append(discord.SelectOption(
                 label=label[:100],
