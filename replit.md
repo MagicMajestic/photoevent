@@ -16,7 +16,7 @@ The architecture is designed for simplicity and maintainability, using Discord.p
 ## Key Components
 
 ### Bot Framework
-- **Technology**: Discord.py (Pycord variant)
+- **Technology**: Discord.py (2.5.2)
 - **Intents**: Configured for message content and DM access
 - **Event Management**: Time-based event activation using ISO 8601 timestamps
 
